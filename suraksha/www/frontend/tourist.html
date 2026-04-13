@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>SurakshaYatri — Tourist Dashboard</title>
+
+  <!-- ====== CORE STYLES ====== -->
+  <style>
+    :root {
+      --bg: #111;
+      --text: #eee;
+      --card: #1c1c1c;
+      --muted: #b9c1c9;
+      --input-bg: #141414;
+      --input-border: #3a3a3a;
+      --btn-text: #fff;
+      --accent: #2a9df4;
+      --accent-2: #00c853;
+      --danger: #ff4d4d;
+      --warn: #f59e0b;
+    }
+
+    [data-theme="light"] {
+      --bg: #f0f2f5;
+      --text: #0d1216;
+      --card: #ffffff;
+      --muted: #4b5563;
+      --input-bg: #ffffff;
+      --input-border: #e5e7eb;
+      --btn-text: #0d1216;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.16), transparent), var(--bg);
+      z-index: 5
+    }
+
+    .brand {
+      flex: 1;
+      display: flex;
+      justify-content: center
+    }
+
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 28px;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800;
+    }
+
+    .top-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+      align-items: center
+    }
+
+    .chip {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    #themeBtn {
+      background: transparent;
+      border: 1px solid var(--input-border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700
+    }
+
+    #app {
+      display: flex;
+      gap: 14px;
+      height: calc(100vh - 64px);
+      padding: 12px
+    }
+
+    #left,
+    #right {
+      flex: 1;
+      min-width: 0;
+      overflow: auto
+    }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--input-border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12)
+    }
+
+    .section h3 {
+      margin: 0 0 8px 0
+    }
+
+    label {
+      font-weight: 700;
+      display: block;
+      margin-top: 8px
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border-radius: 8px;
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--input-border);
+      outline: none
+    }
+
+    input::placeholder {
+      color: var(--muted)
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .btn {
+      margin: 6px 6px 0 0;
+      padding: 9px 12px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 800;
+      color: var(--btn-text)
+    }
+
+    .btn-primary {
+      background: var(--accent)
+    }
+
+    .btn-success {
+      background: var(--accent-2)
+    }
+
+    .btn-danger {
+      background: var(--danger)
+    }
+
+    .btn-warn {
+      background: var(--warn);
+      color: #fff
+    }
+
+    #map {
+      height: 50vh;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--input-border);
+      overflow: hidden
+    }
+
+    ul {
+      margin: 6px 0 0 18px
+    }
+
+    #events {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 8px
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--input-border);
+      font-size: 12px
+    }
+
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    /* AI Risk Attractive UI */
+    #riskSVG {
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 8px;
+      background: rgba(42, 157, 244, 0.08);
+      font-weight: 700;
+      text-align: center
+    }
+
+    /* ====== History Modal ====== */
+    #historyModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    #historyBox {
+      background: var(--card);
+      color: var(--text);
+      padding: 20px;
+      border-radius: 12px;
+      width: 80%;
+      height: 70%;
+      overflow: auto;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    #historyBox h2 {
+      margin-top: 0
+    }
+
+    #closeHistory {
+      float: right;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 18px
+    }
+
+    #poi li {
+      cursor: pointer;
+      /* 👈 ab har POI clickable lagega */
+      margin-bottom: 6px;
+    }
+
+
+    #historyList li {
+      margin-bottom: 6px
+    }
+  </style>
+
+  <!-- ====== MAP/PLUGINS ====== -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body data-theme="dark">
+  <header>
+    <div class="chip">🛡 Tourist Dashboard</div>
+    <div class="brand">
+      <h1>🌍 SurakshaYatri — Safe Travel</h1>
+    </div>
+    <div class="top-actions">
+      <button id="themeBtn" title="Toggle Theme">☀ Light Mode</button>
+    </div>
+  </header>
+
+  <div id="app">
+    <!-- ===== LEFT PANE ===== -->
+    <div id="left">
+      <div class="section">
+        <h3>Create Tourist Digital ID</h3>
+        <label>Full Name</label>
+        <input id="name" placeholder="Your name" />
+        <label>Aadhaar (12 digits)</label>
+        <input id="aadhaar" maxlength="12" placeholder="123412341234" />
+        <label>Itinerary (comma separated)</label>
+        <input id="itinerary" placeholder="e.g. Shillong, Cave, Forest" />
+
+        <!-- Emergency contact -->
+        <label>Emergency Contact</label>
+        <div class="row">
+          <select id="countryCode" style="flex:0.4">
+            <option value="+91">🇮🇳 +91</option>
+            <option value="+1">🇺🇸 +1</option>
+            <option value="+44">🇬🇧 +44</option>
+            <option value="+61">🇦🇺 +61</option>
+            <option value="+81">🇯🇵 +81</option>
+          </select>
+          <input id="emergency" placeholder="Phone number" style="flex:1" />
+        </div>
+
+        <div class="row">
+          <button class="btn btn-primary" onclick="register()">Register</button>
+          <button class="btn btn-primary" onclick="exportData()">Export Digital ID</button>
+          <button class="btn btn-warn" onclick="openHistory()">📜 My History</button>
+        </div>
+        <div id="qrcode" style="margin-top:10px"></div>
+        <div class="muted">QR contains the signed Digital ID payload.</div>
+      </div>
+
+      <div class="section">
+        <h3>Live Actions</h3>
+        <div class="row">
+          <button id="startBtn" class="btn btn-success" onclick="startTracking()">▶️ Start Tracking</button>
+          <button id="stopBtn" class="btn btn-warn" onclick="stopTracking()" disabled>⏹ Stop Tracking</button>
+          <button class="btn btn-danger" onclick="panic()">🚨 PANIC / SOS</button>
+        </div>
+        <p id="events">No live events yet.</p>
+      </div>
+
+      <div class="section">
+        <h3>AI Risk Predictor</h3>
+        <div id="riskSVG"></div>
+        <div class="row">
+          <button class="btn btn-warn" onclick="predictRisk()">Predict</button>
+          <button class="btn btn-warn" onclick="resetRisk()">Reset</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Data Reset</h3>
+        <div class="row">
+          <button class="btn btn-danger" onclick="resetAll()">Reset All Data</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+  <h3>IoT Emergency Assist</h3>
+  <p class="muted">🎤 Voice-triggered emergency help (for elders/disabled)</p>
+  <div class="row">
+    <button class="btn btn-warn" onclick="toggleMic()">🎤 Mic On</button>
+    <button class="btn btn-danger" onclick="stopMic()" id="stopMicBtn" disabled>⏹ Stop Mic</button>
+  </div>
+  <p id="micStatus" class="muted">Mic is off.</p>
+</div>
+
+
+    <!-- ===== RIGHT PANE ===== -->
+    <div id="right">
+      <div id="map"></div>
+      <div class="section">
+        <div class="flex-between">
+          <h3>Nearby Places</h3>
+          <span class="pill">Live from OSM</span>
+        </div>
+        <input id="searchPOI" placeholder="Search nearby place..."
+          style="margin-bottom:8px;padding:6px;border-radius:6px;border:1px solid var(--input-border);width:100%;background:var(--input-bg);color:var(--text)" />
+        <ul id="poi"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== History Modal ====== -->
+  <div id="historyModal">
+    <div id="historyBox">
+      <span id="closeHistory">✖</span>
+      <h2>📜 My Registration & Tracking History</h2>
+      <ul id="historyList"></ul>
+    </div>
+  </div>
+
+  <script>
+    let theme = 'dark';
+    let map = null, heatLayer = null;
+    let tourist = null;
+    let activeCoords = null;
+    let watchId = null, marker = null;
+    const heatPts = [];
+    const STORAGE_KEY = 'suraksha_tourists_v1';
+    const ALERTS_KEY = 'suraksha_alerts_v1';
+    const SOS_KEY = 'suraksha_sos_alerts_v1';
+    const HISTORY_KEY = 'suraksha_history_v1';
+
+    /* THEME TOGGLE */
+    const themeBtn = document.getElementById('themeBtn');
+    function applyTheme(next) {
+      document.body.setAttribute('data-theme', next === 'light' ? 'light' : 'dark');
+      themeBtn.textContent = next === 'light' ? '🌙 Dark Mode' : '☀ Light Mode';
+      theme = next;
+    }
+    themeBtn.addEventListener('click', () => applyTheme(theme === 'light' ? 'dark' : 'light'));
+
+    /* MAP INIT */
+    function initMap() {
+      map = L.map('map').setView([20.5937, 78.9629], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '©️ OpenStreetMap' }).addTo(map);
+      heatLayer = L.heatLayer([], { radius: 25, blur: 15, maxZoom: 17 }).addTo(map);
+    }
+    initMap();
+
+    /* UI helper */
+    function ui(msg) { document.getElementById('events').textContent = msg; }
+
+    /* SYNC TO CENTRAL */
+    /* SYNC TO CENTRAL */
+    function syncToCentral() {
+      if (!tourist) return;
+      let central = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      central[tourist.ad] = { ...tourist, last: activeCoords };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(central));
+      window.dispatchEvent(new Event('storage'));
+      // police ko notify kare
+      localStorage.setItem("tourist_update", Date.now().toString());
+      saveHistory(`Synced tourist ${tourist.name} [${tourist.uniqueID}] at ${new Date().toLocaleString()}`);
+    }
+
+    let recognition;
+let micActive = false;
+
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("❌ Speech recognition not supported in this browser.");
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "en-IN"; // Hindi/English mix ke liye: "hi-IN" bhi use kar sakte ho
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    micActive = true;
+    document.getElementById("micStatus").textContent = "🎤 Mic is listening for emergency...";
+    document.getElementById("stopMicBtn").disabled = false;
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+    console.log("Heard:", transcript);
+    if (transcript.includes("help") || transcript.includes("bachao") || transcript.includes("sos")) {
+      alert("🚨 Voice Emergency Detected! SOS Triggered.");
+      syncSOS(); // reuse existing SOS function
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error(event.error);
+    document.getElementById("micStatus").textContent = "⚠️ Mic error: " + event.error;
+  };
+
+  recognition.onend = () => {
+    if (micActive) recognition.start(); // auto-restart if still active
+  };
+
+  recognition.start();
+}
+
+function stopMic() {
+  if (recognition) {
+    micActive = false;
+    recognition.stop();
+    document.getElementById("micStatus").textContent = "Mic is off.";
+    document.getElementById("stopMicBtn").disabled = true;
+  }
+}
+
+
+    /* SYNC SOS */
+    function syncSOS() {
+      if (!tourist) return;
+      let alerts = JSON.parse(localStorage.getItem(ALERTS_KEY) || '[]');
+      alerts.push({ id: Date.now().toString(), ...tourist, coords: activeCoords, time: new Date().toLocaleString() });
+      localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
+      window.dispatchEvent(new Event('storage'));
+      // police ko notify kare
+      localStorage.setItem("tourist_sos", Date.now().toString());
+      saveHistory(`🚨 SOS sent at ${new Date().toLocaleString()}`);
+    }
+
+
+    /* REGISTER */
+    function register() {
+      const name = document.getElementById('name').value.trim();
+      const ad = document.getElementById('aadhaar').value.trim();
+      const it = document.getElementById('itinerary').value.trim();
+      const code = document.getElementById('countryCode').value;
+      const emNo = document.getElementById('emergency').value.trim();
+      const em = code + emNo;
+
+      if (!name || ad.length !== 12) { alert('Enter valid details'); return; }
+
+      const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (existing[ad]) { alert('❌ Aadhaar already registered'); return; }
+
+      const random3 = Math.floor(100 + Math.random() * 900);
+      const uniqueID = name.split(" ")[0] + ad.slice(-4) + random3;
+      const date = new Date().toLocaleString();
+
+      tourist = { name, ad, it, em, uniqueID, date };
+      myTouristUID = uniqueID;   // ✅ yahi important hai (tourist ko identify karne ke liye)
+
+      syncToCentral();
+      saveHistory(`✅ Registered ${name} [${uniqueID}] at ${date}`);
+      ui(`Tourist ${name} registered. ID: ${uniqueID}`);
+
+      const q = document.getElementById('qrcode');
+      q.innerHTML = '';
+      new QRCode(q, { text: JSON.stringify(tourist), width: 120, height: 120 });
+
+      alert(`✅ ${name} registered successfully!`);
+      startTracking();
+    }
+
+
+    /* EXPORT */
+    function exportData() {
+      if (!tourist) { alert("No tourist registered"); return; }
+      const blob = new Blob([JSON.stringify(tourist, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = tourist.name + "_digital_id.json"; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /* TRACKING */
+    function startTracking() {
+      if (!tourist) { alert('Register first'); return; }
+      if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+      if (watchId) { alert('Already tracking!'); return; }
+      watchId = navigator.geolocation.watchPosition(pos => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        activeCoords = [lat, lng];
+        if (marker) { marker.setLatLng(activeCoords); }
+        else { marker = L.marker(activeCoords).addTo(map).bindPopup(tourist.name); }
+        heatPts.push([lat, lng, 0.5]); heatLayer.setLatLngs(heatPts);
+        map.setView(activeCoords, 14);
+        ui(`Tracking at ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        loadNearbyPlaces(lat, lng);
+        syncToCentral();
+      }, err => { ui('Error: ' + err.message); });
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      saveHistory(`▶️ Tracking started at ${new Date().toLocaleString()}`);
+    }
+
+    function stopTracking() {
+      if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      ui('Tracking stopped.');
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      saveHistory(`⏹ Tracking stopped at ${new Date().toLocaleString()}`);
+    }
+
+    /* PANIC / SOS */
+    function panic() {
+      alert("🚨 SOS Triggered! Authorities notified.");
+      let sosSound = new Audio("https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"); sosSound.play();
+      syncSOS();
+      ui('SOS alert sent!');
+    }
+
+    /* AI RISK PREDICTOR (dummy) */
+    function predictRisk() {
+      const riskEl = document.getElementById('riskSVG');
+      const level = Math.random() > 0.5 ? 'HIGH 🔴' : 'LOW 🟢';
+      riskEl.innerHTML = `<p style="font-size:16px;">⚠️ Risk Level: <b>${level}</b></p>`;
+      saveHistory(`AI Risk predicted: ${level}`);
+    }
+    function resetRisk() { document.getElementById('riskSVG').innerHTML = ""; }
+
+    /* RESET */
+    function resetAll() {
+      if (confirm("Clear all local tourist data?")) {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(ALERTS_KEY);
+        localStorage.removeItem(SOS_KEY);
+        localStorage.removeItem(HISTORY_KEY);
+        tourist = null; activeCoords = null; heatPts.length = 0;
+        if (marker) { map.removeLayer(marker); marker = null; }
+        heatLayer.setLatLngs([]);
+        ui('All data reset.');
+        document.getElementById('qrcode').innerHTML = "";
+      }
+    }
+
+    /* HISTORY SAVE/VIEW */
+    function saveHistory(entry) {
+      let list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      list.push(entry);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    }
+    function openHistory() {
+      document.getElementById('historyModal').style.display = "flex";
+      let list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      const ul = document.getElementById('historyList'); ul.innerHTML = "";
+      list.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        ul.appendChild(li);
+      });
+    }
+    document.getElementById('closeHistory').onclick = () => { document.getElementById('historyModal').style.display = "none"; };
+
+    /* LISTEN FOR SOS FROM POLICE */
+
+    window.addEventListener("storage", function (e) {
+      if (e.key && e.key.startsWith("touristSOS_")) {
+        const data = JSON.parse(e.newValue);
+        if (data && data.uid === myTouristUID) {
+          alert("🚨 Authority has triggered SOS for you!\nTime: " + data.time);
+        }
+      }
+    });
+
+    /* NEARBY PLACES */
+    const amenityIcons = {
+      hospital: "🏥",
+      cafe: "☕",
+      restaurant: "🍴",
+      bar: "🍺",
+      hotel: "🏨",
+      temple: "🛕",
+      museum: "🏛",
+      bus_station: "🚌",
+      fountain: "⛲",
+      school: "🏫",
+      college: "🎓",
+      police: "👮",
+      pharmacy: "💊",
+      bank: "🏦"
+    };
+
+    let poiMarkers = []; // global array for markers
+
+    function clearPOIMarkers() {
+      poiMarkers.forEach(m => map.removeLayer(m));
+      poiMarkers = [];
+    }
+
+    async function loadNearbyPlaces(lat, lng) {
+      const poi = document.getElementById('poi');
+      poi.innerHTML = "<li>Loading nearby places...</li>";
+
+      try {
+        // ✅ Faster query: only nodes + ways
+        const query = `
+      [out:json][timeout:25];
+      (
+        node(around:2000,${lat},${lng})["amenity"];
+        way(around:2000,${lat},${lng})["amenity"];
+
+      );
+      out center;
+    `;
+        document.getElementById("searchPOI").addEventListener("input", () => {
+          const filter = document.getElementById("searchPOI").value.toLowerCase();
+          document.querySelectorAll("#poi li").forEach(li => {
+            li.style.display = li.textContent.toLowerCase().includes(filter) ? "" : "none";
+          });
+        });
+
+        const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+        const res = await fetch(url);
+        const data = await res.json();
+
+        poi.innerHTML = "";
+        clearPOIMarkers(); // 🧹 remove old markers
+
+        if (data.elements.length === 0) {
+          poi.innerHTML = "<li>No nearby places found.</li>";
+          return;
+        }
+
+        const searchVal = document.getElementById('searchPOI').value.toLowerCase();
+
+        data.elements.forEach(el => {
+          const name = el.tags && el.tags.name ? el.tags.name : el.tags.amenity;
+          let lat = el.lat || (el.center && el.center.lat);
+          let lon = el.lon || (el.center && el.center.lon);
+
+          if (name && lat && lon) {
+            if (!searchVal || name.toLowerCase().includes(searchVal)) {
+              const li = document.createElement('li');
+              const amenityType = el.tags.amenity;
+              const icon = amenityIcons[amenityType] || "📍";
+
+              li.textContent = `${icon} ${name}`;
+              li.style.cursor = "pointer";
+
+              // 👉 Custom emoji marker
+              const customIcon = L.divIcon({
+                className: "custom-icon",
+                html: `<div style="font-size:28px;">${icon}</div>`
+              });
+
+
+              const m = L.marker([lat, lon], { icon: customIcon })
+                .addTo(map)
+                .bindPopup(`${icon} ${name}`);
+
+              poiMarkers.push(m);
+
+              li.onclick = () => {
+                map.setView([lat, lon], 17);
+                m.openPopup();
+              };
+
+              poi.appendChild(li);
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error(err);
+        poi.innerHTML = "<li>Error loading nearby places</li>";
+      }
+    }
+
+
+  </script>
+</body>
+
+</html>

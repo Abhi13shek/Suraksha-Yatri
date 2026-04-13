@@ -1,0 +1,504 @@
+<!DOCTYPE html>  
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SurakshaYatri — Smart Tourist Safety System (Final)</title>
+
+<!-- ====== CORE STYLES ====== -->
+<style>
+  :root{
+    --bg:#111; --text:#eee; --card:#1c1c1c; --muted:#b9c1c9;
+    --input-bg:#141414; --input-border:#3a3a3a; --btn-text:#fff;
+    --accent:#2a9df4; --accent-2:#00c853; --danger:#ff4d4d; --warn:#f59e0b;
+  }
+  [data-theme="light"]{
+    --bg:#f0f2f5; --text:#0d1216; --card:#ffffff; --muted:#4b5563;
+    --input-bg:#ffffff; --input-border:#e5e7eb; --btn-text:#0d1216;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:center;gap:12px;padding:12px 16px;position:sticky;top:0;background:linear-gradient(180deg,rgba(0,0,0,0.16),transparent),var(--bg);z-index:5}
+  .brand{flex:1;display:flex;justify-content:center}
+  h1{
+    margin:0; text-align:center; font-size:28px; letter-spacing:0.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:800;
+  }
+  .top-actions{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .chip{font-size:12px;color:var(--muted)}
+  #themeBtn{
+    background:transparent;border:1px solid var(--input-border);color:var(--text);
+    padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700
+  }
+
+  #app{display:flex;gap:14px;height:calc(100vh - 64px);padding:12px}
+  #left,#right{flex:1;min-width:0;overflow:auto}
+  .section{background:var(--card);border:1px solid var(--input-border);border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
+  .section h3{margin:0 0 8px 0}
+  label{font-weight:700;display:block;margin-top:8px}
+  input,select{width:100%;padding:10px;margin-top:6px;border-radius:8px;background:var(--input-bg);color:var(--text);border:1px solid var(--input-border);outline:none}
+  input::placeholder{color:var(--muted)}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{margin:6px 6px 0 0;padding:9px 12px;border:0;border-radius:8px;cursor:pointer;font-weight:800;color:var(--btn-text)}
+  .btn-primary{background:var(--accent)}
+  .btn-success{background:var(--accent-2)}
+  .btn-danger{background:var(--danger)}
+  .btn-warn{background:var(--warn);color:#fff}
+  #map{height:64vh;width:100%;border-radius:12px;border:1px solid var(--input-border);overflow:hidden}
+  ul{margin:6px 0 0 18px}
+  #touristList li{margin:5px 0}
+  #events{color:var(--muted);font-size:14px;margin-top:8px}
+  canvas{margin-top:6px}
+  .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--input-border);font-size:12px}
+  .flex-between{display:flex;justify-content:space-between;align-items:center}
+  .muted{color:var(--muted);font-size:13px}
+</style>
+
+<!-- ====== MAP/PLUGINS ====== -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body data-theme="dark">
+  <header>
+    <div class="chip">🛡 Real-time Demo</div>
+    <div class="brand"><h1>🌍 SurakshaYatri — Tourist Safety Monitoring</h1></div>
+    <div class="top-actions">
+      <button id="themeBtn" title="Toggle Theme">☀ Light Mode</button>
+    </div>
+  </header>
+
+  <div id="app">
+    <!-- ===== LEFT PANE ===== -->
+    <div id="left">
+      <div class="section">
+        <div class="flex-between">
+          <h3>Create Tourist Digital ID</h3>
+          <span class="pill" id="regCount">Registered: 0</span>
+
+        </div>
+
+        <label>Full Name</label>
+        <input id="name" placeholder="Your name"/>
+        <label>Aadhaar (12 digits)</label>
+        <input id="aadhaar" maxlength="12" placeholder="123412341234"/>
+        <label>Itinerary (comma separated)</label>
+        <input id="itinerary" placeholder="e.g. Shillong, Cave, Forest"/>
+        
+        <!-- Emergency contact with country code dropdown -->
+        <label>Emergency Contact (SMS/SOS)</label>
+        <div class="row">
+          <select id="countryCode" style="flex:0.4">
+            <option value="+91">🇮🇳 +91</option>
+            <option value="+1">🇺🇸 +1</option>
+            <option value="+44">🇬🇧 +44</option>
+            <option value="+61">🇦🇺 +61</option>
+            <option value="+81">🇯🇵 +81</option>
+          </select>
+          <input id="emergency" placeholder="Phone number" style="flex:1"/>
+        </div>
+
+        <div class="row">
+          <button class="btn btn-primary" onclick="register()">Register</button>
+          <button class="btn btn-primary" onclick="exportData()">Export Digital ID</button>
+        </div>
+        <div id="qrcode" style="margin-top:10px"></div>
+        <div class="muted">QR contains the signed Digital ID payload (demo JSON).</div>
+      </div>
+
+      <div class="section">
+        <h3>Registered Tourists</h3>
+        <ul id="touristList"></ul>
+      </div>
+
+      <div class="section">
+        <h3>Live Actions</h3>
+        <div class="row">
+          <button id="startBtn" class="btn btn-success" onclick="startTracking()">▶️ Start Tracking</button>
+          <button id="stopBtn"  class="btn btn-warn" onclick="stopTracking()" disabled>⏹ Stop Tracking</button>
+          <button class="btn btn-danger" onclick="panic()">🚨 PANIC / SOS</button>
+        </div>
+        <p id="events">No live events yet.</p>
+      </div>
+
+      <div class="section">
+        <h3>AI Risk Predictor</h3>
+        <div id="riskSVG"></div>
+        <div class="row">
+          <button class="btn btn-warn" onclick="predictRisk()">Predict</button>
+          <button class="btn btn-warn" onclick="resetRisk()">Reset</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Data Reset</h3>
+        <div class="row">
+          <button class="btn btn-danger" onclick="resetAll()">Reset All Data</button>
+        </div>
+        <div class="muted">Clears tourists, markers, heatmap, safe-zone & UI.</div>
+      </div>
+      <form id="touristForm">
+        <label>Full Name</label>
+        <input id="name" name="name" placeholder="Your name" required/>
+      
+        <label>Phone Number</label>
+        <input id="phone" name="phone" placeholder="Phone Number" required/>
+      
+        <label>Aadhaar (12 digits)</label>
+        <input id="aadhar" name="aadhar" maxlength="12" placeholder="123412341234" required/>
+      
+        <label>Emergency Contact</label>
+        <input id="emergency" name="emergency" placeholder="Emergency Contact Number" required/>
+      
+        <button type="submit" class="btn btn-primary">Register</button>
+
+        <button type="button" class="btn btn-primary" onclick="registerTourist()">Register</button>
+
+      </form>
+      
+      <div id="qrcode" style="margin-top:10px"></div>
+      
+      <!-- <form id="touristForm">
+        <input id="name" placeholder="Full Name" required>
+        <input id="phone" placeholder="Phone Number" required>
+        <input id="aadhar" placeholder="Aadhar Number" required>
+        <input id="emergency" placeholder="Emergency Contact Number" required>
+        <button type="submit">Register Tourist</button>
+      </form>
+      
+      <script>
+      const form = document.getElementById("touristForm");
+      
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();  // ✅ Prevent page reload
+      
+        const name = document.getElementById("name").value.trim();
+        const phone = document.getElementById("phone").value.trim();
+        const aadhar = document.getElementById("aadhar").value.trim();
+        const emergency = document.getElementById("emergency").value.trim();
+      
+        if(!name || !phone || !aadhar || !emergency){
+          alert("All fields are required!");
+          return;
+        }
+      
+        try {
+          const res = await fetch("/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, phone, aadhar, emergency })
+          });
+          const data = await res.json();
+      
+          if(data.success){
+            alert("Tourist registered ✅");
+            form.reset();             // Clear form
+            loadTourists();           // Refresh list without reloading page
+          } else {
+            alert(data.message);
+          }
+        } catch(err){
+          alert("Server error");
+          console.error(err);
+        }
+      });
+      </script> -->
+      
+    </div>
+
+    <!-- ===== RIGHT PANE ===== -->
+    <div id="right">
+      <div id="map"></div>
+      <div class="section">
+        <div class="flex-between">
+          <h3>Nearby Places</h3>
+          <span class="pill">Dummy POIs</span>
+        </div>
+        <ul id="poi"></ul>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ================================
+   GLOBAL STATE
+===================================*/
+let theme = 'dark';
+let map = null, heatLayer = null, safeZone = null;
+let tourists = {}; 
+let activeAadhaar = null; 
+const SAFE_RADIUS_M = 5000; 
+const heatPts = [];
+
+/* ================================
+   THEME TOGGLE
+===================================*/
+const themeBtn = document.getElementById('themeBtn');
+function applyTheme(next){
+  document.body.setAttribute('data-theme', next === 'light' ? 'light' : 'dark');
+  themeBtn.textContent = next === 'light' ? '🌙 Dark Mode' : '☀ Light Mode';
+  theme = next;
+}
+themeBtn.addEventListener('click', ()=> applyTheme(theme === 'light' ? 'dark' : 'light'));
+
+/* ================================
+   MAP INIT
+===================================*/
+function initMap(){
+  const mapDiv = document.getElementById('map');
+  mapDiv.style.minHeight = '420px';
+  map = L.map('map', { zoomControl:true }).setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'©️ OpenStreetMap' }).addTo(map);
+  heatLayer = L.heatLayer([], { radius:25, blur:15, maxZoom:17 }).addTo(map);
+}
+initMap();
+
+/* ================================
+   HELPERS
+===================================*/
+function ui(msg){ document.getElementById('events').textContent = msg; }
+function updateRegCount(){ document.getElementById('regCount').textContent = 'Registered: ' + Object.keys(tourists).length; }
+
+function refreshTouristList(){
+  const ul = document.getElementById('touristList');
+  ul.innerHTML = '';
+  Object.keys(tourists).forEach(ad=>{
+    const t = tourists[ad];
+    const li = document.createElement('li');
+    li.innerHTML = `<b>${t.data.name}</b> — Aadhaar: ${ad}, UniqueID: ${t.data.uniqueID}, Emergency: ${t.data.em}
+      <br><span class="muted">Itinerary:</span> ${t.data.it || '-'}
+      <br><span class="muted">Registered on:</span> ${t.data.date}
+      <br>
+      <button class="btn btn-primary" onclick="centerOn('${ad}')">Center on Map</button>
+      <button class="btn btn-danger" onclick="deleteTourist('${ad}')">Delete</button>`;
+    ul.appendChild(li);
+  });
+}
+
+/* ================================
+   REGISTER & EXPORT
+===================================*/
+function register(){
+  const name = document.getElementById('name').value.trim();
+  const ad   = document.getElementById('aadhaar').value.trim();
+  const it   = document.getElementById('itinerary').value.trim();
+  const code = document.getElementById('countryCode').value;
+  const emNo = document.getElementById('emergency').value.trim();
+  const em   = code + emNo;
+
+  // validate emergency number length based on country
+  const countryLengths = { "+91":10, "+1":10, "+44":10, "+61":9, "+81":10 };
+  if(!name){ alert('Please enter name'); return; }
+  if(ad.length !== 12 || !/^\d{12}$/.test(ad)){ alert('Invalid Aadhaar (12 digits)'); return; }
+  if(tourists[ad]){ alert('Aadhaar already registered!'); return; }
+  if(!/^\d+$/.test(emNo) || emNo.length !== countryLengths[code]){ alert('Invalid emergency number for ' + code); return; }
+
+  const random3 = Math.floor(100 + Math.random()*900); 
+  const uniqueID = name.split(" ")[0] + ad.slice(-4) + random3;
+  const date = new Date().toLocaleString();
+
+  tourists[ad] = { data:{ name, ad, it, em, uniqueID, date }, marker:null, watchId:null, last:null };
+  activeAadhaar = ad; 
+  updateRegCount();
+  refreshTouristList();
+  ui(`Tourist ${name} registered. Unique ID: ${uniqueID}`);
+
+  // QR
+  const q = document.getElementById('qrcode'); q.innerHTML = '';
+  new QRCode(q, { text: JSON.stringify(tourists[ad].data), width: 120, height: 120 });
+
+  // popup + sound
+  alert(`✅ ${name} registered successfully!`);
+  let audio = new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3");
+  audio.play();
+}
+
+function exportData(){
+  if(!activeAadhaar){ alert("No active tourist"); return; }
+  const data = tourists[activeAadhaar].data;
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = data.name+"_digital_id.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ================================
+   TRACKING
+===================================*/
+function startTracking(){
+  if(!activeAadhaar){ alert('Register a tourist first'); return; }
+  if(!navigator.geolocation){ alert('Geolocation not supported'); return; }
+
+  const tourist = tourists[activeAadhaar];
+  if(tourist.watchId){ alert('Already tracking!'); return; }
+
+  tourist.watchId = navigator.geolocation.watchPosition(pos=>{
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const coords = [lat, lng];
+    tourist.last = coords;
+
+    if(tourist.marker){ tourist.marker.setLatLng(coords); }
+    else { tourist.marker = L.marker(coords).addTo(map).bindPopup(tourist.data.name); }
+
+    heatPts.push([lat, lng, 0.5]);
+    heatLayer.setLatLngs(heatPts);
+    map.setView(coords, 13);
+    ui(`Tracking ${tourist.data.name} at ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+  }, err=>{ ui('Error getting location: ' + err.message); });
+  
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+}
+
+function stopTracking(){
+  if(!activeAadhaar) return;
+  const tourist = tourists[activeAadhaar];
+  if(tourist.watchId){
+    navigator.geolocation.clearWatch(tourist.watchId);
+    tourist.watchId = null;
+    ui('Tracking stopped for ' + tourist.data.name);
+  }
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+}
+
+/* ================================
+   PANIC / SOS
+===================================*/
+function panic(){
+  alert("🚨 SOS Triggered! Authorities have been notified.");
+  let sosSound = new Audio("https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3");
+  sosSound.play();
+}
+
+/* ================================
+   CENTER ON MAP
+===================================*/
+function centerOn(ad){
+  const t = tourists[ad];
+  if(t && t.last){
+    map.setView(t.last, 15);
+    if(t.marker) t.marker.openPopup();
+  } else {
+    alert("No location available for this tourist yet.");
+  }
+}
+
+/* ================================
+   DELETE TOURIST
+===================================*/
+function deleteTourist(ad){
+  const t = tourists[ad];
+  if(t){
+    if(t.marker) map.removeLayer(t.marker);
+    if(t.watchId) navigator.geolocation.clearWatch(t.watchId);
+    delete tourists[ad];
+    updateRegCount();
+    refreshTouristList();
+    ui(`Tourist with Aadhaar ${ad} deleted.`);
+  }
+}
+
+/* ================================
+   AI RISK PREDICTOR (demo)
+===================================*/
+function predictRisk(){
+  document.getElementById('riskSVG').innerHTML = "<p>⚠ Potential risk detected near forest area (demo)</p>";
+}
+function resetRisk(){
+  document.getElementById('riskSVG').innerHTML = "";
+}
+
+/* ================================
+   RESET ALL
+===================================*/
+function resetAll(){
+  tourists = {};
+  activeAadhaar = null;
+  heatPts.length = 0;
+  heatLayer.setLatLngs([]);
+  document.getElementById('qrcode').innerHTML = '';
+  document.getElementById('touristList').innerHTML = '';
+  updateRegCount();
+  ui('All data has been reset.');
+}
+
+/* ================================
+   NEARBY PLACES (dummy demo)
+===================================*/
+function loadNearbyPlaces(){
+  const pois = [
+    "🏞 Local Park",
+    "🏛 Museum",
+    "🛍 Shopping Complex",
+    "⛪ Temple",
+    "🍴 Restaurant",
+    "🏨 Hotel",
+    "🚉 Railway Station"
+  ];
+  const ul = document.getElementById('poi');
+  ul.innerHTML = "";
+  pois.forEach(p=>{
+    const li = document.createElement('li');
+    li.textContent = p;
+    ul.appendChild(li);
+  });
+}
+loadNearbyPlaces();
+
+
+
+
+
+
+async function registerTourist() {
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const aadhar = document.getElementById("aadhar").value.trim();
+  const emergency = document.getElementById("emergency").value.trim();
+
+  if (!name || !phone || !aadhar || !emergency) {
+    alert("All fields required");
+    return;
+  }
+
+  try {
+    const res = await fetch("/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, phone, aadhar, emergency })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert("✅ Tourist Registered");
+      loadTourists();   // tourist list refresh
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    alert("Server error");
+    console.error(err);
+  }
+}
+
+async function loadTourists() {
+  const res = await fetch("/tourists");
+  const data = await res.json();
+  const ul = document.getElementById("touristList");
+  ul.innerHTML = "";
+  data.forEach(t => {
+    const li = document.createElement("li");
+    li.textContent = `${t.name} — ${t.phone}`;
+    ul.appendChild(li);
+  });
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>SurakshaYatri — Tourist Dashboard (Pro)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+
+  <!-- Leaflet + plugins -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    /* ===== THEME & PALETTE ===== */
+    :root{
+      --bg-1: #07141a;        /* deepest */
+      --bg-2: #071c2b;
+      --card: rgba(255,255,255,0.04);
+      --muted: #97a6b3;
+      --text: #eaf6ff;
+      --accent-1: #2a9df4;
+      --accent-2: #00c853;
+      --accent-3: #6c5ce7;
+      --warn: #f59e0b;
+      --danger: #ff4d4d;
+      --glass-border: rgba(255,255,255,0.05);
+      --glass-bg: rgba(255,255,255,0.02);
+      --radius: 12px;
+      --shadow-lg: 0 20px 60px rgba(2,6,23,0.6);
+      --shadow-sm: 0 6px 18px rgba(2,6,23,0.45);
+      --trans: 260ms cubic-bezier(.2,.9,.2,1);
+    }
+
+    [data-theme="light"]{
+      --bg-1: #f5f8fb;
+      --bg-2: #e9eef6;
+      --card: rgba(2,6,23,0.03);
+      --muted: #51606e;
+      --text: #06111a;
+      --glass-bg: rgba(255,255,255,0.84);
+      --glass-border: rgba(2,6,23,0.06);
+      --shadow-lg: 0 12px 40px rgba(2,6,23,0.06);
+      --shadow-sm: 0 6px 18px rgba(2,6,23,0.04);
+    }
+
+    /* ===== Base ===== */
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:var(--text);background:linear-gradient(180deg,var(--bg-1),var(--bg-2));-webkit-font-smoothing:antialiased}
+    a{color:inherit}
+    /* subtle page wide padding */
+    body { padding-bottom:80px; }
+
+    /* ===== Animated background layer ===== */
+    .bg-animated {
+      position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;
+      background: radial-gradient(800px 400px at 10% 10%, rgba(42,157,244,0.06), transparent),
+                  radial-gradient(600px 300px at 90% 80%, rgba(108,92,231,0.04), transparent),
+                  linear-gradient(180deg, rgba(7,20,26,0.6), rgba(7,28,43,0.6));
+      transition:opacity 400ms ease;
+    }
+    /* floating soft shapes */
+    .float-shape {
+      position:absolute; filter:blur(28px); opacity:0.18; transform:translate3d(0,0,0);
+      animation: floaty 12s ease-in-out infinite;
+      mix-blend-mode: screen;
+    }
+    .float-1{ width:420px; height:420px; left:-80px; top:10%; background:linear-gradient(135deg,var(--accent-1),var(--accent-3)); border-radius:40%;}
+    .float-2{ width:280px; height:280px; right:-40px; bottom:10%; background:linear-gradient(135deg,var(--accent-2),var(--accent-1)); border-radius:40%; animation-duration:18s; opacity:0.14;}
+    @keyframes floaty { 0%{transform:translateY(0)} 50%{transform:translateY(-18px)} 100%{transform:translateY(0)} }
+
+    /* ===== Header ===== */
+    header{ position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:16px; padding:14px 20px; background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-bottom:1px solid rgba(255,255,255,0.02); backdrop-filter: blur(6px) }
+    .brand{ display:flex; align-items:center; gap:14px; flex:1 }
+    .logo{ width:56px; height:56px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:white; font-weight:900; font-size:18px; background:linear-gradient(135deg,var(--accent-1),var(--accent-2)); box-shadow:0 10px 30px rgba(42,157,244,0.12) }
+    .brand h1{ margin:0; font-size:20px; font-weight:900; background:linear-gradient(90deg,var(--accent-1),var(--accent-2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height:1 }
+    .subtitle{ font-size:12px; color:var(--muted); margin-top:4px }
+
+    .top-actions{ display:flex; gap:10px; align-items:center }
+    #themeBtn{ padding:8px 12px; border-radius:10px; border:1px solid var(--glass-border); background:var(--glass-bg); color:var(--text); cursor:pointer; font-weight:700; transition:transform var(--trans) }
+    #themeBtn:hover{ transform:translateY(-3px) }
+
+    /* ===== Layout ===== */
+    #app{ position:relative; z-index:5; display:grid; grid-template-columns:380px 1fr; gap:20px; padding:22px; min-height: calc(100vh - 86px) }
+    @media (max-width:980px){ #app{ grid-template-columns:1fr; padding:16px; min-height:auto } header{ flex-wrap:wrap } }
+
+    /* ===== Cards ===== */
+    #left{ overflow:auto; padding-right:6px; max-height: calc(100vh - 160px) }
+    /* enlarge left side sections slightly as requested */
+    #left .section{ padding:18px; font-size:15px; }
+    #left input, #left select, #left textarea { padding:12px; font-size:15px; }
+    .section{ background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:var(--radius); padding:16px; margin-bottom:14px; border:1px solid var(--glass-border); box-shadow:var(--shadow-lg); backdrop-filter: blur(8px); transition: transform var(--trans); }
+    .section:hover{ transform: translateY(-4px) }
+    .section h3{ margin:0; font-size:15px; font-weight:800 }
+    .muted{ color:var(--muted); font-size:13px; margin-top:6px }
+
+    label{ display:block; font-weight:700; margin-top:12px; font-size:13px }
+    input,select,textarea{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:var(--text); outline:none; margin-top:8px }
+    input::placeholder{ color:var(--muted) }
+
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+    /* ensure the two critical rows never wrap (keep in one line) */
+    .left-button-row, .live-button-row { flex-wrap: nowrap; }
+    .btn{ padding:10px 12px; border-radius:10px; border:0; cursor:pointer; font-weight:800; letter-spacing:0.4px; transition: transform var(--trans), box-shadow var(--trans) }
+    .btn:active{ transform:translateY(1px) }
+    .btn-primary{ background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:white; box-shadow:0 12px 30px rgba(42,157,244,0.12) }
+    .btn-primary:hover{ filter:brightness(1.03) }
+    .btn-success{ background:var(--accent-2); color:white }
+    .btn-warn{ background:var(--warn); color:#111 }
+    .btn-danger{ background:var(--danger); color:white }
+
+    /* QR */
+    #qrcode{ margin-top:12px; display:flex; gap:12px; align-items:center }
+    .qr-box{ width:120px; height:120px; border-radius:10px; padding:6px; border:1px solid rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center; background:transparent }
+
+    /* ===== RIGHT & MAP ===== */
+    #right{ min-width:0; display:flex; flex-direction:column; gap:16px }
+    /* map slightly smaller as requested */
+    #map{ height:48vh; border-radius:14px; border:1px solid var(--glass-border); overflow:hidden; position:relative; box-shadow:var(--shadow-lg) }
+    @media (max-width:980px){ #map{ height:36vh } }
+
+    /* Map loading */
+    .map-loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg, rgba(2,6,23,0.35), rgba(2,6,23,0.45)); z-index:20; gap:12px; flex-direction:column }
+    .spinner{ width:46px; height:46px; border-radius:50%; border:5px solid rgba(255,255,255,0.06); border-top-color:var(--accent-1); animation:spin 1s linear infinite }
+    @keyframes spin{ to{ transform:rotate(360deg) } }
+
+    /* Nearby */
+    .flex-between{ display:flex; justify-content:space-between; align-items:center }
+    .pill{ padding:6px 10px; border-radius:999px; background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent); border:1px solid var(--glass-border); font-size:12px; color:var(--muted) }
+    #searchPOI{ padding:10px; border-radius:10px; border:1px solid var(--glass-border); background:transparent; color:var(--text); width:100%; margin:10px 0 }
+    #poi{ list-style:none; padding-left:0; margin:0; max-height:260px; overflow:auto }
+    #poi li{ padding:10px; border-radius:10px; margin-bottom:8px; display:flex; align-items:center; gap:12px; background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent); border:1px solid rgba(255,255,255,0.02); cursor:pointer; transition: transform var(--trans), background var(--trans) }
+    #poi li:hover{ transform: translateY(-6px); background: linear-gradient(90deg, rgba(42,157,244,0.03), rgba(0,200,83,0.02)) }
+    .amenity-icon{ width:48px; height:48px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:20px; background: rgba(255,255,255,0.02) }
+
+    /* skeleton */
+    .skeleton{ height:54px; border-radius:10px; background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.03)); display:flex; align-items:center; gap:14px; padding:12px; animation: pulse 1.6s ease-in-out infinite }
+    @keyframes pulse{ 0%{ opacity:0.72 } 50%{ opacity:1 } 100%{ opacity:0.72 } }
+
+    /* Risk gauge */
+    .gauge-wrap{ display:flex; align-items:center; gap:12px; justify-content:center }
+    .gauge{ width:140px; height:140px; position:relative }
+    .gauge svg{ transform: rotate(-140deg) }
+    .gauge .center-label{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:800 }
+
+    /* History modal (timeline) */
+    #historyModal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background: rgba(2,6,23,0.6); z-index:80; padding:20px }
+    #historyBox{ width:min(980px,96%); max-height:86vh; background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:12px; padding:18px; border:1px solid var(--glass-border); overflow:auto; box-shadow:0 24px 70px rgba(2,6,23,0.6) }
+    #historyBox h2{ margin:0 0 8px 0 }
+    #closeHistory{ float:right; cursor:pointer; font-weight:900; font-size:18px; color:var(--muted) }
+    .timeline{ margin-top:14px; position:relative; padding-left:22px }
+    .timeline::before{ content:""; position:absolute; left:18px; top:0; bottom:0; width:3px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04)); border-radius:2px }
+    .timeline-item{ position:relative; margin-bottom:16px; padding-left:36px }
+    .timeline-item .dot{ position:absolute; left:6px; top:6px; width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; color:#fff }
+    .timeline-item .content{ background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent); border:1px solid rgba(255,255,255,0.02); padding:10px 12px; border-radius:8px }
+    .timeline-item .time{ font-size:12px; color:var(--muted); margin-top:6px }
+
+    /* SOS overlay */
+    #sosOverlay{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:120; background: linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.45)) }
+    .sos-card{ width:min(740px,96%); border-radius:14px; padding:28px; text-align:center; background: linear-gradient(90deg, rgba(255,0,0,0.06), rgba(255,80,80,0.03)); border:2px solid rgba(255,0,0,0.18); box-shadow:0 18px 60px rgba(255,0,0,0.06); animation:sosPulse 1s ease-in-out infinite }
+    @keyframes sosPulse{ 0%{ transform:scale(1) } 50%{ transform:scale(1.02) } 100%{ transform:scale(1) } }
+    .sos-title{ font-size:28px; font-weight:900; color:var(--danger); margin-bottom:8px }
+    .sos-sub{ color:var(--muted); margin-bottom:16px }
+
+    /* Custom popup modal (added) */
+    #popupModal {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.6);
+    }
+    #popupContent {
+      width: 92%;
+      max-width: 420px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.92));
+      color: #111;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    #popupContent h3 { margin: 0 0 8px; color: #b91c1c; font-size: 18px; }
+    #popupContent p { margin: 0 0 12px; color: #333; }
+
+    /* footer (fixed neat) */
+    footer { position:fixed; left:0; right:0; bottom:0; z-index:40; padding:12px 22px; display:flex; align-items:center; justify-content:space-between; background: linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.12)); border-top:1px solid rgba(255,255,255,0.02); backdrop-filter: blur(8px) }
+    .footer-left{ display:flex; gap:12px; align-items:center }
+    .footer-brand{ display:flex; align-items:center; gap:10px }
+    .footer-brand .mini-logo{ width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; font-weight:900; background:linear-gradient(135deg,var(--accent-1),var(--accent-2)) }
+    .footer-links{ color:var(--muted); font-size:13px }
+    .footer-right{ color:var(--muted); font-size:13px; display:flex; gap:12px; align-items:center }
+
+    /* utilities */
+    .muted-small{ color:var(--muted); font-size:12px }
+    .center{ display:flex; align-items:center; justify-content:center }
+    @media (max-width:980px){ footer{ flex-direction:column; gap:8px; align-items:flex-start } .footer-right{ align-items:flex-start } }
+  </style>
+</head>
+<body data-theme="dark">
+
+  <!-- animated background shapes -->
+  <div class="bg-animated" aria-hidden="true">
+    <div class="float-shape float-1"></div>
+    <div class="float-shape float-2"></div>
+  </div>
+
+  <!-- header -->
+  <header>
+    <div class="brand">
+      <div class="logo">SY</div>
+      <div>
+        <h1>Suraksha Yatri</h1>
+        <div class="subtitle">Protecting Travelers, Anytime. Anywhere</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <!-- <div class="muted-small">Presentation mode</div> -->
+      <button id="themeBtn" title="Toggle Theme">☀ Light Mode</button>
+    </div>
+  </header>
+
+  <!-- main app grid -->
+  <div id="app">
+    <!-- LEFT -->
+    <div id="left">
+      <div class="section">
+        <h3>Create Tourist Digital ID</h3>
+        <div class="muted">Fill required details</div>
+
+        <label>Full Name</label>
+        <input id="name" placeholder="Your name" />
+
+        <label>Aadhaar (12 digits)</label>
+        <input id="aadhaar" maxlength="12" placeholder="123412341234" />
+
+        <label>Itinerary</label>
+        <input id="itinerary" placeholder="e.g. Shillong, Cave, Forest" />
+
+        <label>Emergency Contact</label>
+        <div class="row left-button-row" style="margin-top:6px">
+          <select id="countryCode" style="flex:0 0 30%; padding:10px 8px">
+            <option value="+91">🇮🇳 +91</option>
+            <option value="+1">🇺🇸 +1</option>
+            <option value="+44">🇬🇧 +44</option>
+            <option value="+61">🇦🇺 +61</option>
+            <option value="+81">🇯🇵 +81</option>
+          </select>
+          <!-- maxlength kept to prevent typing more than 10 digits -->
+          <input id="emergency" maxlength="10" placeholder="Phone number" style="flex:1" />
+        </div>
+
+        <!-- Updated: make all three action buttons equal width using inline flex:1 -->
+        <div class="row left-button-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="register()" style="flex:1">Register</button>
+          <button class="btn btn-primary" onclick="exportData()" style="flex:1">Export Digital ID</button>
+          <button class="btn btn-warn" onclick="openHistory()" style="flex:1">📜 My History</button>
+        </div>
+
+        <div id="qrcode" style="margin-top:12px; display:flex; gap:12px; align-items:center">
+          <div class="qr-box" id="qrBox"></div>
+          <div style="flex:1">
+            <div style="margin-top:8px" id="qrInfo"></div>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="card">
+        <div class="section-title">
+          <h3>Emergency Assist</h3>
+          <div class="small muted"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn btn-warn" onclick="toggleMic()">🎤 Mic On</button>
+          <button class="btn btn-danger" id="stopMicBtn" onclick="stopMic()" disabled>⏹ Stop Mic</button>
+        </div>
+        <div id="micStatus" class="muted small" style="margin-top:6px">Mic is off.</div>
+      </div>
+
+
+      <div class="section">
+        <h3>Live Actions</h3>
+        <div class="row live-button-row" style="margin-top:12px">
+          <button id="startBtn" class="btn btn-success" onclick="startTracking()">▶️ Start Tracking</button>
+          <button id="stopBtn" class="btn btn-warn" onclick="stopTracking()" disabled>⏹ Stop Tracking</button>
+          <button class="btn btn-danger" onclick="panic()">🚨 PANIC / SOS</button>
+        </div>
+        <p id="events" class="muted-small" style="margin-top:12px">No live events yet.</p>
+      </div>
+
+      <div class="section">
+        <h3>AI Risk Predictor</h3>
+        <div id="riskSVG" style="margin-top:10px" class="center"></div>
+        <div class="row" style="margin-top:12px; justify-content:center">
+          <button class="btn btn-warn" onclick="predictRisk()">Predict</button>
+          <button class="btn" style="background:transparent;border:1px solid var(--glass-border);color:var(--text)" onclick="resetRisk()">Reset</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Data Reset</h3>
+        <div class="row" style="margin-top:12px">
+          <button class="btn btn-danger" onclick="resetAll()">Reset All Data</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div id="right">
+      <div id="map">
+        <div id="mapLoading" class="map-loading" style="display:flex">
+          <div class="spinner"></div>
+          <div class="muted-small">Loading map…</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="flex-between">
+          <h3>Nearby Places</h3>
+          <span class="pill">Live from OSM</span>
+        </div>
+
+        <input id="searchPOI" placeholder="Search nearby place..." />
+        <ul id="poi"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOS overlay -->
+  <div id="sosOverlay">
+    <div class="sos-card">
+      <div class="sos-title">🚨 SOS SENT</div>
+      <div class="sos-sub">Local authorities have been notified.</div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:12px">
+        <button class="btn btn-danger" onclick="closeSosOverlay()">Stop Alert</button>
+        <button class="btn" onclick="openHistory()">View History</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Modal (added) -->
+  <div id="popupModal" aria-hidden="true">
+    <div id="popupContent">
+      <h3>Registration Failed</h3>
+      <p>❌ Unable to register: Phone number must be exactly 10 digits.</p>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:12px">
+        <button class="btn btn-primary" onclick="closePopup()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY (timeline) -->
+  <div id="historyModal">
+    <div id="historyBox">
+      <span id="closeHistory">✖</span>
+      <h2>📜 My Registration & Tracking History</h2>
+      <div class="muted-small">All your local actions are stored here (browser localStorage).</div>
+      <div class="timeline" id="historyTimeline"></div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <footer>
+    <div class="footer-left">
+      <div class="footer-brand">
+        <div class="mini-logo">SY</div>
+        <div>
+          <div style="font-weight:800">Suraksha Yatri</div>
+          <div class="footer-links">Protecting Travelers, Anytime. Anywhere</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div class="footer-links"> ©️ <span id="year"></span></div>
+      <!-- <div class="footer-links">Contact: <a href="mailto:you@example.com">you@example.com</a></div> -->
+    </div>
+  </footer>
+
+  <!-- ===== APP SCRIPT (features preserved) ===== -->
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    /* -------------------------
+       App state & keys
+       ------------------------- */
+    let theme = 'dark';
+    let map = null, heatLayer = null;
+    let tourist = null;
+    let activeCoords = null;
+    let watchId = null, marker = null;
+    const heatPts = [];
+    const STORAGE_KEY = 'suraksha_tourists_v1';
+    const ALERTS_KEY = 'suraksha_alerts_v1';
+    const SOS_KEY = 'suraksha_sos_alerts_v1';
+    const HISTORY_KEY = 'suraksha_history_v1';
+
+    /* THEME TOGGLE */
+    const themeBtn = document.getElementById('themeBtn');
+    function applyTheme(next) {
+      document.body.setAttribute('data-theme', next === 'light' ? 'light' : 'dark');
+      themeBtn.textContent = next === 'light' ? '🌙 Dark Mode' : '☀ Light Mode';
+      theme = next;
+    }
+    themeBtn.addEventListener('click', () => applyTheme(theme === 'light' ? 'dark' : 'light'));
+
+    /* MAP INIT */
+    function initMap() {
+      map = L.map('map', { zoomControl: true }).setView([20.5937, 78.9629], 5);
+      const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '©️ OpenStreetMap',
+        maxZoom: 19
+      });
+
+      tiles.addTo(map);
+
+      // hide loading when tiles ready
+      tiles.on('load', () => {
+        const ml = document.getElementById('mapLoading'); if (ml) ml.style.display = 'none';
+      });
+
+      // fallback hide after 3.5s
+      setTimeout(() => { const ml = document.getElementById('mapLoading'); if (ml) ml.style.display = 'none'; }, 3500);
+
+      heatLayer = L.heatLayer([], { radius: 25, blur: 15, maxZoom: 17 }).addTo(map);
+    }
+    initMap();
+
+    /* UI helper */
+    function ui(msg) { document.getElementById('events').textContent = msg; }
+
+    /* HISTORY object helpers */
+    function saveHistoryObj(type, text) {
+      let list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      const entry = { id: Date.now(), type, text, time: new Date().toLocaleString() };
+      list.push(entry);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    }
+    function renderHistoryTimeline() {
+      const container = document.getElementById('historyTimeline');
+      const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]').slice().reverse();
+      container.innerHTML = '';
+      if (list.length === 0) {
+        const p = document.createElement('div'); p.className = 'muted-small'; p.style.marginTop = '12px'; p.textContent = 'No history yet.'; container.appendChild(p); return;
+      }
+      list.forEach(item => {
+        const node = document.createElement('div'); node.className = 'timeline-item';
+        const dot = document.createElement('div'); dot.className = 'dot';
+        let icon = 'ℹ️'; let bg = 'linear-gradient(90deg,#2a9df4,#00c853)';
+        if (item.type === 'register') { icon = '✅'; bg = 'linear-gradient(90deg,#00c853,#2a9df4)'; }
+        if (item.type === 'track') { icon = '📍'; bg = 'linear-gradient(90deg,#2a9df4,#00c853)'; }
+        if (item.type === 'sos') { icon = '🚨'; bg = 'linear-gradient(90deg,#ff4d4d,#ff8a6b)'; }
+        if (item.type === 'risk') { icon = '⚠️'; bg = 'linear-gradient(90deg,#f59e0b,#ff4d4d)'; }
+        dot.style.background = bg; dot.style.width = '36px'; dot.style.height = '36px'; dot.style.borderRadius = '10px'; dot.style.display = 'flex'; dot.style.alignItems = 'center'; dot.style.justifyContent = 'center'; dot.style.fontSize = '14px'; dot.textContent = icon;
+
+        const content = document.createElement('div'); content.className = 'content';
+        content.innerHTML = `<div style="font-weight:800">${item.text}</div><div class="time">${item.time}</div>`;
+
+        node.appendChild(dot); node.appendChild(content);
+        container.appendChild(node);
+      });
+    }
+
+    /* SYNC TO CENTRAL */
+    function syncToCentral() {
+      if (!tourist) return;
+      let central = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      central[tourist.ad] = { ...tourist, last: activeCoords };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(central));
+      window.dispatchEvent(new Event('storage'));
+      localStorage.setItem("tourist_update", Date.now().toString());
+      saveHistoryObj('track', `Synced tourist ${tourist.name} [${tourist.uniqueID}]`);
+    }
+
+    /* SYNC SOS */
+    function syncSOS() {
+      if (!tourist) return;
+      let alerts = JSON.parse(localStorage.getItem(ALERTS_KEY) || '[]');
+      alerts.push({ id: Date.now().toString(), ...tourist, coords: activeCoords, time: new Date().toLocaleString() });
+      localStorage.setItem(ALERTS_KEY, JSON.stringify(alerts));
+      window.dispatchEvent(new Event('storage'));
+      localStorage.setItem("tourist_sos", Date.now().toString());
+      saveHistoryObj('sos', `SOS sent by ${tourist ? tourist.name : 'unknown'}`);
+    }
+
+    /* REGISTER */
+    function register() {
+      const name = document.getElementById('name').value.trim();
+      const ad = document.getElementById('aadhaar').value.trim();
+      const it = document.getElementById('itinerary').value.trim();
+      const code = document.getElementById('countryCode').value;
+      const emNo = document.getElementById('emergency').value.trim();
+      const em = code + emNo;
+
+      // --- ADDED: phone length check (must be exactly 10 digits) ---
+      if (emNo.length !== 10) {
+        // Show custom popup modal
+        showPopup();
+        return; // block registration
+      }
+      // --- END ADDED ---
+
+      if (!name || ad.length !== 12) { alert('Enter valid details'); return; }
+      const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (existing[ad]) { alert('❌ Aadhaar already registered'); return; }
+      const random3 = Math.floor(100 + Math.random() * 900);
+      const uniqueID = name.split(" ")[0] + ad.slice(-4) + random3;
+      const date = new Date().toLocaleString();
+      tourist = { name, ad, it, em, uniqueID, date };
+      syncToCentral();
+      saveHistoryObj('register', `Registered ${name} [${uniqueID}]`);
+      ui(`Tourist ${name} registered. ID: ${uniqueID}`);
+      const q = document.getElementById('qrBox'); q.innerHTML = '';
+      new QRCode(q, { text: JSON.stringify(tourist), width: 120, height: 120 });
+      document.getElementById('qrInfo').textContent = `${tourist.name} • ${tourist.uniqueID}`;
+      alert(`✅ ${name} registered successfully!`);
+      renderHistoryTimeline();
+      startTracking();
+    }
+
+    /* EXPORT */
+    function exportData() {
+      if (!tourist) { alert("No tourist registered"); return; }
+      const blob = new Blob([JSON.stringify(tourist, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = tourist.name + "_digital_id.json"; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /* TRACKING */
+    function startTracking() {
+      if (!tourist) { alert('Register first'); return; }
+      if (!navigator.geolocation) { alert('Geolocation not supported'); return; }
+      if (watchId) { alert('Already tracking!'); return; }
+      watchId = navigator.geolocation.watchPosition(pos => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        activeCoords = [lat, lng];
+        if (marker) { marker.setLatLng(activeCoords); }
+        else { marker = L.marker(activeCoords).addTo(map).bindPopup(tourist.name); }
+        heatPts.push([lat, lng, 0.5]); heatLayer.setLatLngs(heatPts);
+        map.setView(activeCoords, 14);
+        ui(`Tracking at ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        loadNearbyPlaces(lat, lng);
+        syncToCentral();
+      }, err => { ui('Error: ' + err.message); }, { enableHighAccuracy: true, maximumAge: 3000 });
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      saveHistoryObj('track', `Tracking started`);
+      renderHistoryTimeline();
+    }
+
+    function stopTracking() {
+      if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      ui('Tracking stopped.');
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      saveHistoryObj('track', `Tracking stopped`);
+      renderHistoryTimeline();
+    }
+
+    /* SOS / PANIC with overlay and sound */
+    function panic() {
+      const overlay = document.getElementById('sosOverlay'); overlay.style.display = 'flex';
+      try {
+        let sosSound = new Audio("https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3"); sosSound.loop = true; sosSound.play().catch(()=>{});
+        overlay._sound = sosSound;
+      } catch(e) {}
+      syncSOS();
+      ui('SOS alert sent!');
+      renderHistoryTimeline();
+      let originalTitle = document.title; let flashing = true;
+      overlay._flashInterval = setInterval(()=> {
+        document.title = flashing ? '🚨 SOS — SurakshaYatri' : originalTitle;
+        flashing = !flashing;
+      }, 900);
+    }
+
+    function closeSosOverlay() {
+      const overlay = document.getElementById('sosOverlay'); overlay.style.display = 'none';
+      if (overlay._sound) { overlay._sound.pause(); overlay._sound = null; }
+      if (overlay._flashInterval) { clearInterval(overlay._flashInterval); document.title = 'SurakshaYatri — Tourist Dashboard'; }
+      saveHistoryObj('sos', 'SOS alert stopped by user');
+      renderHistoryTimeline();
+    }
+
+    /* RISK predictor (animated gauge) */
+    function predictRisk() {
+      const container = document.getElementById('riskSVG');
+      container.innerHTML = '';
+      const score = Math.floor(Math.random() * 101);
+      const level = score > 65 ? 'HIGH' : (score > 35 ? 'MEDIUM' : 'LOW');
+      const color = level === 'HIGH' ? '#ff4d4d' : (level === 'MEDIUM' ? '#f59e0b' : '#00c853');
+
+      // create gauge
+      const svgNS = "http://www.w3.org/2000/svg";
+      const wrap = document.createElement('div'); wrap.className = 'gauge-wrap';
+      const gaugeBox = document.createElement('div'); gaugeBox.className = 'gauge';
+      const svg = document.createElementNS(svgNS, 'svg'); svg.setAttribute('width','140'); svg.setAttribute('height','140'); svg.setAttribute('viewBox','0 0 140 140');
+      const bgArc = document.createElementNS(svgNS, 'path');
+      const fgArc = document.createElementNS(svgNS, 'path');
+
+      function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+        const angleInRadians = (angleInDegrees-90) * Math.PI / 180.0;
+        return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
+      }
+      function describeArc(x, y, radius, startAngle, endAngle){
+        const start = polarToCartesian(x, y, radius, endAngle);
+        const end = polarToCartesian(x, y, radius, startAngle);
+        const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+        return ["M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y].join(" ");
+      }
+
+      const arcPath = describeArc(70,70,52, -140, 140);
+      bgArc.setAttribute('d', arcPath);
+      bgArc.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+      bgArc.setAttribute('stroke-width', '12');
+      bgArc.setAttribute('fill', 'none');
+      svg.appendChild(bgArc);
+
+      const percent = Math.max(0, Math.min(100, score));
+      const endAngle = -140 + ( (280) * (percent/100) );
+      const fgPath = describeArc(70,70,52, -140, endAngle);
+      fgArc.setAttribute('d', fgPath);
+      fgArc.setAttribute('stroke', color);
+      fgArc.setAttribute('stroke-width', '12');
+      fgArc.setAttribute('fill', 'none');
+      fgArc.setAttribute('stroke-linecap','round');
+      svg.appendChild(fgArc);
+
+      gaugeBox.appendChild(svg);
+      const label = document.createElement('div'); label.className = 'center-label';
+      label.innerHTML = `<div style="font-size:18px">${percent}%</div><div style="font-size:12px;color:var(--muted)">${level}</div>`;
+      gaugeBox.appendChild(label);
+      wrap.appendChild(gaugeBox);
+      container.appendChild(wrap);
+
+      saveHistoryObj('risk', `AI Risk predicted: ${level} (${percent}%)`);
+      renderHistoryTimeline();
+
+      // animate stroke
+      setTimeout(()=> {
+        try {
+          const len = fgArc.getTotalLength();
+          fgArc.style.strokeDasharray = `${len} ${len}`;
+          fgArc.style.strokeDashoffset = `${len}`;
+          fgArc.style.transition = 'stroke-dashoffset 900ms ease-out';
+          setTimeout(()=> { fgArc.style.strokeDashoffset = '0'; }, 50);
+        } catch(e){}
+      }, 60);
+    }
+    function resetRisk() { document.getElementById('riskSVG').innerHTML = ""; }
+
+    /* RESET ALL */
+    function resetAll() {
+      if (!confirm("Clear all local tourist data?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(ALERTS_KEY);
+      localStorage.removeItem(SOS_KEY);
+      localStorage.removeItem(HISTORY_KEY);
+      tourist = null; activeCoords = null; heatPts.length = 0;
+      if (marker) { map.removeLayer(marker); marker = null; }
+      heatLayer.setLatLngs([]);
+      ui('All data reset.');
+      document.getElementById('qrBox').innerHTML = "";
+      document.getElementById('qrInfo').textContent = "";
+      renderHistoryTimeline();
+    }
+
+    /* HISTORY modal open/close */
+    document.getElementById('closeHistory').onclick = () => { document.getElementById('historyModal').style.display = 'none'; }
+    function openHistory() { renderHistoryTimeline(); document.getElementById('historyModal').style.display = 'flex'; }
+
+    /* Listen for authority (demo) */
+    window.addEventListener('storage', (e) => {
+      if (e.key === "authority_sos_UID") {
+        const uid = e.newValue;
+        if (tourist && uid === tourist.uniqueID) {
+          alert("🚨 Authority has triggered SOS for you! Please respond immediately.");
+        }
+      }
+    });
+
+    /* NEARBY PLACES (Overpass) */
+    const amenityIcons = {
+      hospital: "🏥", cafe: "☕", restaurant: "🍴", bar: "🍺", hotel: "🏨",
+      temple: "🛕", museum: "🏛", bus_station: "🚌", fountain: "⛲",
+      school: "🏫", college: "🎓", police: "👮", pharmacy: "💊",
+      bank: "🏦"
+    };
+
+    let poiMarkers = [];
+    function clearPOIMarkers() {
+      poiMarkers.forEach(m => map.removeLayer(m));
+      poiMarkers = [];
+    }
+
+    // filter
+    document.getElementById("searchPOI").addEventListener("input", () => {
+      const filter = document.getElementById("searchPOI").value.toLowerCase();
+      document.querySelectorAll("#poi li").forEach(li => {
+        li.style.display = li.textContent.toLowerCase().includes(filter) ? "" : "none";
+      });
+    });
+
+    async function loadNearbyPlaces(lat, lng) {
+      const poi = document.getElementById('poi');
+      poi.innerHTML = '';
+      for (let i = 0; i < 4; i++) {
+        const el = document.createElement('li'); el.className = 'skeleton'; el.innerHTML = `<div style="width:48px;height:48px;border-radius:10px;background:rgba(255,255,255,0.03)"></div><div style="flex:1"><div style="height:12px;width:70%;background:rgba(255,255,255,0.03);border-radius:6px"></div></div>`;
+        poi.appendChild(el);
+      }
+
+      try {
+        const query = `
+      [out:json][timeout:25];
+      (
+        node(around:2000,${lat},${lng})["amenity"];
+        way(around:2000,${lat},${lng})["amenity"];
+      );
+      out center;
+    `;
+        const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+        const res = await fetch(url);
+        const data = await res.json();
+
+        poi.innerHTML = "";
+        clearPOIMarkers();
+
+        if (!data.elements || data.elements.length === 0) {
+          poi.innerHTML = "<li class='muted-small'>No nearby places found.</li>";
+          return;
+        }
+
+        const searchVal = document.getElementById('searchPOI').value.toLowerCase();
+
+        data.elements.forEach(el => {
+          const name = (el.tags && (el.tags.name || el.tags.amenity)) || 'Unknown';
+          let lat = el.lat || (el.center && el.center.lat);
+          let lon = el.lon || (el.center && el.center.lon);
+
+          if (name && lat && lon) {
+            if (!searchVal || name.toLowerCase().includes(searchVal)) {
+              const li = document.createElement('li');
+              const amenityType = el.tags ? el.tags.amenity : null;
+              const icon = amenityIcons[amenityType] || "📍";
+
+              li.innerHTML = `<div class="amenity-icon">${icon}</div><div style="flex:1"><div style="font-weight:800">${name}</div><div class="muted-small">${amenityType || ''}</div></div>`;
+              li.style.cursor = "pointer";
+
+              const customIcon = L.divIcon({
+                className: "custom-icon",
+                html: `<div style="font-size:22px">${icon}</div>`,
+                iconSize: [30, 30]
+              });
+
+              const m = L.marker([lat, lon], { icon: customIcon })
+                .addTo(map)
+                .bindPopup(`${icon} ${name}`);
+
+              poiMarkers.push(m);
+
+              li.onclick = () => {
+                map.setView([lat, lon], 17);
+                m.openPopup();
+              };
+
+              poi.appendChild(li);
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error(err);
+        poi.innerHTML = "<li class='muted-small'>Error loading nearby places</li>";
+      }
+    }
+
+    // render history if present on load
+    renderHistoryTimeline();
+
+    /* ---- Popup functions (added) ---- */
+    function showPopup() {
+      const pm = document.getElementById('popupModal');
+      if (pm) pm.style.display = 'flex';
+    }
+    function closePopup() {
+      const pm = document.getElementById('popupModal');
+      if (pm) pm.style.display = 'none';
+    }
+
+    let recognition;
+let micActive = false;
+
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("❌ Speech recognition not supported in this browser.");
+    return;
+  }
+
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "en-IN"; // Hindi+English
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    micActive = true;
+    document.getElementById("micStatus").textContent = "🎤 Listening... say 'Help' or 'Bachao'";
+    document.getElementById("stopMicBtn").disabled = false;
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+    console.log("Heard:", transcript);
+    if (transcript.includes("help") || transcript.includes("bachao") || transcript.includes("sos")) {
+      alert("🚨 Voice Emergency Detected! SOS triggered.");
+      // Trigger your existing SOS flow
+      syncSOS();
+    }
+  };
+
+  recognition.onerror = (event) => {
+    document.getElementById("micStatus").textContent = "⚠️ Mic error: " + event.error;
+  };
+
+  recognition.onend = () => {
+    if (micActive) recognition.start(); // auto restart until stopped
+  };
+
+  recognition.start();
+}
+
+function stopMic() {
+  if (recognition) {
+    micActive = false;
+    recognition.stop();
+    document.getElementById("micStatus").textContent = "Mic is off.";
+    document.getElementById("stopMicBtn").disabled = true;
+  }
+}
+
+
+  </script>
+</body>
+</html>

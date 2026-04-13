@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SurakshaYatri — Tourism / Police Dashboard</title>
+
+<!-- ====== CORE STYLES (kept visually same) ====== -->
+<style>
+  :root{
+    --bg:#111; --text:#eee; --card:#1c1c1c; --muted:#b9c1c9;
+    --input-bg:#141414; --input-border:#3a3a3a; --btn-text:#fff;
+    --accent:#2a9df4; --accent-2:#00c853; --danger:#ff4d4d; --warn:#f59e0b;
+  }
+  [data-theme="light"]{
+    --bg:#f0f2f5; --text:#0d1216; --card:#ffffff; --muted:#4b5563;
+    --input-bg:#ffffff; --input-border:#e5e7eb; --btn-text:#0d1216;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:center;gap:12px;padding:12px 16px;position:sticky;top:0;background:linear-gradient(180deg,rgba(0,0,0,0.16),transparent),var(--bg);z-index:50}
+  .brand{flex:1;display:flex;justify-content:center}
+  h1{
+    margin:0; text-align:center; font-size:28px; letter-spacing:0.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:800;
+  }
+  .top-actions{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .chip{font-size:12px;color:var(--muted)}
+  #themeBtn{background:transparent;border:1px solid var(--input-border);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+
+  #app{display:flex;gap:14px;height:calc(100vh - 64px);padding:12px}
+  #left,#right{flex:1;min-width:0;overflow:auto}
+  .section{background:var(--card);border:1px solid var(--input-border);border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 8px 24px rgba(0,0,0,0.12)}
+  .section h3{margin:0 0 8px 0}
+  label{font-weight:700;display:block;margin-top:8px}
+  input,select{width:100%;padding:10px;margin-top:6px;border-radius:8px;background:var(--input-bg);color:var(--text);border:1px solid var(--input-border);outline:none}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{margin:6px 6px 0 0;padding:9px 12px;border:0;border-radius:8px;cursor:pointer;font-weight:800;color:var(--btn-text)}
+  .btn-primary{background:var(--accent)}
+  .btn-success{background:var(--accent-2)}
+  .btn-danger{background:var(--danger)}
+  .btn-warn{background:var(--warn);color:#fff}
+  #map{height:64vh;width:100%;border-radius:12px;border:1px solid var(--input-border);overflow:hidden}
+  ul{margin:6px 0 0 18px}
+  .muted{color:var(--muted);font-size:13px}
+  .alerts{max-height:240px;overflow:auto;margin-top:8px;border-radius:8px;padding:8px;border:1px dashed var(--input-border);background:rgba(255,255,255,0.02)}
+  .alert-item{padding:8px;border-radius:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.03);display:flex;justify-content:space-between;align-items:center}
+  .verify-box{white-space:pre-wrap;font-family:monospace;font-size:13px;background:rgba(0,0,0,0.06);padding:10px;border-radius:8px;margin-top:8px}
+  .attention{animation: 1s ease-in-out infinite alternate; border-color:var(--danger);}
+  @keyframes pulse { from { box-shadow:0 0 0 0 rgba(255,0,0,0.6);} to { box-shadow:0 0 40px 10px rgba(255,0,0,0.18);} }
+  .alerts.attention { animation: pulse 1s infinite; border-color:var(--danger); }
+  .small{font-size:13px;color:var(--muted)}
+  /* modal scanner */
+  .modal { position: fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:var(--card); border:1px solid var(--input-border); padding:16px; z-index:200; border-radius:10px; display:none; width:640px; max-width:96%;}
+  .modal.open{ display:block; }
+  video{border-radius:8px;border:1px solid var(--input-border); width:440px; height:330px; background:#000}
+  .close-x{position:absolute; right:12px; top:8px; cursor:pointer; font-weight:800}
+</style>
+
+<!-- ====== MAP/PLUGINS & QR libs ====== -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+</head>
+<body data-theme="dark">
+  <header>
+    <div class="chip">👮 Tourism / Police Dashboard</div>
+    <div class="brand"><h1>🌍 SurakshaYatri — Authority</h1></div>
+    <div class="top-actions">
+      <button id="themeBtn" title="Toggle Theme">☀ Light Mode</button>
+    </div>
+  </header>
+
+  <div id="app">
+    <!-- LEFT: Controls & Lists -->
+    <div id="left">
+      <div class="section">
+        <h3>Central Registered Tourists</h3>
+        <div class="muted small">Live synced (via localStorage for demo).</div>
+        <ul id="centralTouristList"></ul>
+      </div>
+
+      <div class="section">
+        <h3>Live SOS Alerts</h3>
+        <div id="alertsBox" class="alerts"><div class="small">No alerts yet.</div></div>
+      </div>
+
+      <div class="section">
+        <h3>Verification</h3>
+        <div class="row">
+          <input id="verifyIdInput" placeholder="Enter Aadhaar or UniqueID"/>
+          <button class="btn btn-primary" onclick="verifyById()">Verify</button>
+          <button class="btn btn-primary" onclick="openScanner()">📷 Start Scanner</button>
+          <button class="btn btn-warn" onclick="stopScanner()">⏹ Stop Scanner</button>
+        </div>
+        <div id="verifyResult" class="verify-box" style="display:none"></div>
+      </div>
+
+      <div class="section">
+        <h3>Actions</h3>
+        <div class="row">
+          <button class="btn btn-success" onclick="zoomAllMarkers()">Zoom to All</button>
+          <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+          <button class="btn btn-warn" onclick="clearAlerts()">Clear Alerts</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Map -->
+    <div id="right">
+      <div id="map"></div>
+      <div class="section">
+        <div class="flex-between"><h3>Heatmap & Risk Overlay</h3><span class="pill">Live</span></div>
+        <div class="muted small">Click "Zoom to All" to view all tourist markers.</div>
+      </div>
+    </div>
+  </div>
+
+<!-- Scanner modal -->
+<div id="scannerModal" class="modal">
+  <div class="close-x" onclick="stopScanner()">✖</div>
+  <h3>QR Scanner (camera)</h3>
+  <div style="display:flex;gap:12px;align-items:flex-start">
+    <video id="video" autoplay muted playsinline></video>
+    <div style="flex:1">
+      <button class="btn btn-primary" onclick="snap()">Scan Frame</button>
+      <input type="file" id="imgFile" accept="image/*"/>
+      <div id="scanStatus" class="small" style="margin-top:12px">Scanner idle</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Shared keys same as tourist page */
+const STORAGE_KEY = 'suraksha_tourists_v1';
+const ALERTS_KEY = 'suraksha_alerts_v1';
+
+const SOS_KEY = 'suraksha_sos_alerts_v1';
+
+/* New: Send SOS alert to a specific tourist */
+function sendTouristSOS(ad){
+  if(!ad) return alert('Enter Aadhaar/UID');
+  const central = readCentral();
+  if(!central[ad]) return alert('Tourist not found');
+  const sosArr = JSON.parse(localStorage.getItem(SOS_KEY)||'[]');
+  sosArr.push({id:Date.now().toString(), targetAd:ad, time:new Date().toLocaleString(), message:"Tourism Authority Alert!"});
+  localStorage.setItem(SOS_KEY, JSON.stringify(sosArr));
+  alert('✅ SOS sent to tourist');
+  window.dispatchEvent(new Event('storage'));
+}
+
+/* Global */
+let map = null, heatLayer = null;
+let policeMarkers = {};
+let scannerStream = null;
+let scannerInterval = null;
+let sosAudio = null;
+
+/* THEME */
+const themeBtn = document.getElementById('themeBtn');
+function applyTheme(next){ document.body.setAttribute('data-theme', next === 'light' ? 'light' : 'dark'); themeBtn.textContent = next === 'light' ? '🌙 Dark Mode' : '☀ Light Mode'; }
+themeBtn.addEventListener('click', ()=> applyTheme(document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light'));
+
+/* MAP INIT */
+function initMap(){
+  map = L.map('map', { zoomControl:true }).setView([20.5937,78.9629],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'©️ OpenStreetMap' }).addTo(map);
+  heatLayer = L.heatLayer([], { radius:25, blur:15, maxZoom:17 }).addTo(map);
+}
+initMap();
+
+/* Storage helpers */
+function readCentral(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw): {}; }catch(e){ return {}; } }
+function writeCentral(obj){ localStorage.setItem(STORAGE_KEY, JSON.stringify(obj)); window.dispatchEvent(new Event('storage')); }
+function readAlerts(){ try{ const raw = localStorage.getItem(ALERTS_KEY); return raw ? JSON.parse(raw) : []; }catch(e){ return []; } }
+function writeAlerts(arr){ localStorage.setItem(ALERTS_KEY, JSON.stringify(arr)); window.dispatchEvent(new Event('storage')); }
+
+/* Render central list */
+function refreshCentralList(){
+  const ul = document.getElementById('centralTouristList');
+  ul.innerHTML = '';
+  const central = readCentral();
+  const keys = Object.keys(central);
+  if(keys.length===0){ ul.innerHTML = '<div class="small">No registered tourists</div>'; return; }
+  keys.forEach(ad=>{
+    const t = central[ad];
+    const li = document.createElement('li');
+    li.innerHTML = `<b>${t.name || t.data?.name || 'Unknown'}</b> — Aadhaar: ${ad} • UID: ${t.uniqueID || t.data?.uniqueID || '-'}
+      <br><span class="muted small">Last Known: ${t.last ? (t.last.map(n=>n.toFixed(4)).join(', ')) : 'N/A'}</span>
+      <br>
+      <button class="btn btn-primary" onclick="centerOn('${ad}')">Center</button>
+      <button class="btn btn-success" onclick="verifyByIdInline('${ad}')">Verify</button>
+      <button class="btn btn-danger" onclick="deleteTourist('${ad}')">Delete</button>`;
+    ul.appendChild(li);
+    // ensure marker on map
+    if(t.last){
+      updatePoliceMarker(ad, t.last);
+    }
+  });
+}
+
+/* Alerts rendering */
+function renderAlerts(){
+  const box = document.getElementById('alertsBox');
+  const alerts = readAlerts();
+  box.innerHTML = '';
+  if(alerts.length===0){
+    box.innerHTML = '<div class="small">No alerts yet.</div>';
+    box.classList.remove('attention');
+    stopSosSound();
+    return;
+  }
+  alerts.forEach(a=>{
+    const d = document.createElement('div');
+    d.className = 'alert-item';
+    d.innerHTML = `<div>
+      <strong>🚨 ${a.name}</strong><br>
+      <span class="small">Aadhaar: ${a.aadhaar} • ${a.time}</span><br>
+      <span class="small">Last: ${a.coords ? a.coords.map(n=>n.toFixed(4)).join(', '): 'N/A'}</span>
+    </div>
+    <div>
+      <button class="btn btn-success" onclick="ack('${a.id}')">Acknowledge</button>
+      <button class="btn btn-primary" onclick="centerOn('${a.aadhaar}')">Center</button>
+    </div>`;
+    box.appendChild(d);
+  });
+  // visual attention & sound
+  box.classList.add('attention');
+  playSosSound();
+}
+
+/* Acknowledge alert */
+function ack(id){
+  let alerts = readAlerts();
+  const idx = alerts.findIndex(a=>a.id===id);
+  if(idx!==-1){ alerts.splice(idx,1); writeAlerts(alerts); renderAlerts(); alert('Acknowledged'); }
+}
+
+/* Clear alerts */
+function clearAlerts(){ writeAlerts([]); renderAlerts(); }
+
+/* Play sos sound */
+function playSosSound(){
+  if(sosAudio) return;
+  sosAudio = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
+  sosAudio.loop = true; sosAudio.volume = 1.0; sosAudio.play();
+}
+function stopSosSound(){ if(sosAudio){ sosAudio.pause(); sosAudio=null; } document.getElementById('alertsBox').classList.remove('attention'); }
+
+/* Zoom all markers */
+function zoomAllMarkers(){
+  const latlngs = [];
+  Object.keys(policeMarkers).forEach(k=>{
+    try{ const p = policeMarkers[k].getLatLng(); latlngs.push([p.lat,p.lng]); }catch(e){}
+  });
+  if(latlngs.length===0) return alert('No markers to show');
+  map.fitBounds(L.latLngBounds(latlngs).pad(0.5));
+}
+
+/* CENTER & markers */
+function centerOn(ad){
+  const central = readCentral();
+  if(central[ad] && central[ad].last){
+    map.setView(central[ad].last, 15);
+    if(policeMarkers[ad]) policeMarkers[ad].openPopup();
+  } else alert('No location');
+}
+function updatePoliceMarker(ad, coords){
+  if(!coords) return;
+  if(policeMarkers[ad]) policeMarkers[ad].setLatLng(coords);
+  else {
+    policeMarkers[ad] = L.marker(coords).addTo(map).bindPopup((readCentral()[ad]?.name) || 'Tourist');
+  }
+  // update heat layer
+  const all = [];
+  Object.keys(policeMarkers).forEach(k=>{
+    try{ const ll = policeMarkers[k].getLatLng(); all.push([ll.lat,ll.lng,0.5]); }catch(e){}
+  });
+  heatLayer.setLatLngs(all);
+}
+
+/* Delete tourist */
+function deleteTourist(ad){
+  const central = readCentral();
+  if(central[ad]) delete central[ad];
+  writeCentral(central);
+  if(policeMarkers[ad]){ map.removeLayer(policeMarkers[ad]); delete policeMarkers[ad]; }
+  refreshCentralList();
+}
+
+/* CSV export */
+function exportCSV(){
+  const central = readCentral();
+  const rows = [['Name','Aadhaar','UniqueID','Itinerary','Emergency','LastLat','LastLng','RegisteredOn']];
+  Object.keys(central).forEach(ad=>{
+    const t = central[ad];
+    rows.push([t.name || t.data?.name || '', ad, t.uniqueID || t.data?.uniqueID || '', t.it || '', t.em || '', t.last ? t.last[0] : '', t.last ? t.last[1] : '', t.date || t.data?.date || '']);
+  });
+  const csv = rows.map(r=>r.map(x=>`"${String(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='tourists.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+/* Verification */
+function verifyById(){
+  const q = document.getElementById('verifyIdInput').value.trim();
+  if(!q) return alert('Enter Aadhaar or UniqueID');
+  const central = readCentral();
+  let found = null;
+  Object.keys(central).forEach(ad=>{
+    const t = central[ad];
+    if(ad===q || t.uniqueID===q || (t.data && (t.data.ad===q || t.data.uniqueID===q))) found = t;
+  });
+  const out = document.getElementById('verifyResult');
+  out.style.display = 'block';
+  if(found) out.textContent = JSON.stringify(found, null, 2);
+  else out.textContent = 'Not found';
+}
+function verifyByIdInline(ad){
+  const central = readCentral();
+  const out = document.getElementById('verifyResult');
+  out.style.display = 'block';
+  out.textContent = central[ad] ? JSON.stringify(central[ad], null, 2) : 'Not found';
+}
+
+/* ================================
+   QR Scanner (camera + file) using jsQR
+===================================*/
+function openScanner(){
+  document.getElementById('scannerModal').classList.add('open');
+  startScanner();
+}
+async function startScanner(){
+  try{
+    const constraints = { video:{ facingMode:'environment'} };
+    scannerStream = await navigator.mediaDevices.getUserMedia(constraints);
+    const video = document.getElementById('video');
+    video.srcObject = scannerStream; await video.play();
+    document.getElementById('scanStatus').textContent = 'Camera active — scanning...';
+    if(scannerInterval) clearInterval(scannerInterval);
+    scannerInterval = setInterval(()=>scanFrame(video), 700);
+  }catch(e){
+    console.error(e);
+    document.getElementById('scanStatus').textContent = 'Camera not accessible';
+  }
+}
+function stopScanner(){
+  document.getElementById('scannerModal').classList.remove('open');
+  if(scannerInterval){ clearInterval(scannerInterval); scannerInterval = null; }
+  if(scannerStream){ scannerStream.getTracks().forEach(t=>t.stop()); scannerStream = null; }
+  document.getElementById('scanStatus').textContent = 'Scanner stopped';
+}
+function snap(){
+  const video = document.getElementById('video');
+  scanFrame(video, true);
+}
+function scanFrame(video, force=false){
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const id = ctx.getImageData(0,0,canvas.width,canvas.height);
+  const code = jsQR(id.data, id.width, id.height);
+  if(code){
+    handleScannedData(code.data);
+    stopScanner();
+  } else if(force){
+    alert('No QR in frame');
+  }
+}
+/* handle file upload scanning */
+document.getElementById('imgFile').addEventListener('change', function(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = function(ev){
+    const img = new Image(); img.onload = function(){
+      const canvas = document.createElement('canvas'); canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(img,0,0);
+      const id = ctx.getImageData(0,0,canvas.width,canvas.height); const code = jsQR(id.data, id.width, id.height);
+      if(code) handleScannedData(code.data); else alert('No QR found in image');
+    }; img.src = ev.target.result;
+  }; r.readAsDataURL(f);
+});
+function handleScannedData(text){
+  try{
+    const parsed = JSON.parse(text);
+    document.getElementById('verifyResult').style.display='block';
+    document.getElementById('verifyResult').textContent = JSON.stringify(parsed,null,2);
+  }catch(e){
+    document.getElementById('verifyIdInput').value = text;
+    verifyById();
+  }
+}
+
+/* ================================
+   React to storage changes (sync)
+===================================*/
+window.addEventListener('storage', ()=>{
+  refreshCentralList();
+  renderAlerts();
+});
+
+/* At load, render */
+refreshCentralList();
+renderAlerts();
+
+/* If any alerts exist at load, play sound/attention */
+if(readAlerts().length>0){ document.getElementById('alertsBox').classList.add('attention'); playSosSound(); }
+
+/* Periodic sync: also poll central to ensure markers updated */
+setInterval(()=>{
+  const central = readCentral();
+  Object.keys(central).forEach(ad=>{
+    const t = central[ad];
+    if(t.last) updatePoliceMarker(ad, t.last);
+  });
+  refreshCentralList();
+},3000);
+
+/* cleanup on unload */
+window.addEventListener('beforeunload', ()=>{ stopScanner(); stopSosSound(); });
+</script>
+</body>
+</html>

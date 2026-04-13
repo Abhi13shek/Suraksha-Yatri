@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Suraksha Yatri | Secure Login</title>
+  <style>
+    /* ===== Reset ===== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      background: 
+        linear-gradient(135deg, rgba(15,32,39,0.92), rgba(32,58,67,0.92), rgba(44,83,100,0.92)),
+        url("https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg");
+              
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      animation: gradientBG 15s ease infinite;
+      color: #fff;
+    }
+
+    @keyframes gradientBG {
+      0% { filter: hue-rotate(0deg); }
+      50% { filter: hue-rotate(25deg); }
+      100% { filter: hue-rotate(0deg); }
+    }
+
+    .main-heading {
+      font-size: 38px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #ffe641;
+      letter-spacing: 1px;
+    }
+
+    .sub-heading {
+      font-size: 16px;
+      margin-bottom: 25px;
+      color: #ddd;
+    }
+
+    .login-box {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+      width: 360px;
+      text-align: center;
+    }
+
+    .login-box h2 {
+      font-size: 22px;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+
+    .input-group {
+      margin: 18px 0;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      outline: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .input-group input::placeholder {
+      color: #bbb;
+      font-size: 14px;
+    }
+
+    .login-btn {
+      margin-top: 22px;
+      padding: 12px;
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(45deg, #ff512f, #dd2476);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+
+    footer {
+      position: absolute;
+      bottom: 12px;
+      font-size: 13px;
+      color: #000000;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Project Branding -->
+  <h1 class="main-heading">Suraksha Yatri</h1>
+  <p class="sub-heading">Login to continue</p>
+
+  <!-- Login Box -->
+  <div class="login-box" id="loginBox">
+    <h2>Secure Login</h2>
+    <form id="loginForm">
+      <div class="input-group">
+        <input type="text" id="username" placeholder="Enter Username" required>
+      </div>
+      <div class="input-group">
+        <input type="password" id="password" placeholder="Enter Password" required>
+      </div>
+      <button type="submit" class="login-btn">Login</button>
+    </form>
+  </div>
+
+  <!-- Footer -->
+  <footer>©️ 2025 Suraksha Yatri Project | All Rights Reserved</footer>
+
+  <!-- Script -->
+  <script>
+    const form = document.getElementById("loginForm");
+    const loginBox = document.getElementById("loginBox");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!username || !password) {
+        loginBox.classList.add("shake");
+        setTimeout(() => loginBox.classList.remove("shake"), 350);
+        return;
+      }
+
+      try {
+        // Simulating login success (replace with backend API call)
+        if (username === "admin" && password === "1234") {
+          // ✅ Store login info in browser
+          localStorage.setItem("loggedInUser", username);
+
+          // ✅ Redirect to dashboard
+          window.location.href = "tourism.html";
+        } else {
+          alert("❌ Invalid username or password");
+        }
+      } catch (err) {
+        alert("⚠️ Server not responding. Please try again.");
+      }
+    });
+  </script>
+
+</body>
+</html>

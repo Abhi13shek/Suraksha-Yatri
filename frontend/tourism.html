@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Suraksha Yatri</title>
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+
+<!-- Leaflet + heat -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+<!-- QR scanning library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+
+<!-- Chart.js for analytics -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+  --bg-1:#061022;
+  --bg-2:#03101a;
+  --card: rgba(255,255,255,0.03);
+  --muted:#98a3b3;
+  --text:#eaf6ff;
+  --accent-1:#2a9df4;
+  --accent-2:#00c853;
+  --danger:#ff4d4d;
+  --warn:#ffb300;
+  --glass: rgba(255,255,255,0.04);
+  --radius:12px;
+  --shadow: 0 18px 50px rgba(0,0,0,0.6);
+  --transition: 220ms cubic-bezier(.2,.9,.2,1);
+  font-synthesis: none;
+}
+[data-theme="light"]{
+  --bg-1:#f6f8fb; --bg-2:#eef3fb; --text:#071219; --muted:#4b5563; --card:#ffffff; --glass: rgba(2,6,23,0.03);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial;color:var(--text);background:linear-gradient(180deg,var(--bg-1),var(--bg-2));-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+
+/* Background shapes */
+.bg-shapes{position:fixed;inset:0;pointer-events:none;z-index:0}
+.shape-a{position:absolute;left:-120px;top:6%;width:520px;height:520px;border-radius:40%;background:linear-gradient(135deg,var(--accent-1),#6c5ce7);filter:blur(38px);opacity:0.12;transform:translateY(0);animation:floaty 20s ease-in-out infinite}
+.shape-b{position:absolute;right:-80px;bottom:8%;width:360px;height:360px;border-radius:40%;background:linear-gradient(135deg,var(--accent-2),var(--accent-1));filter:blur(36px);opacity:0.12;animation:floaty 26s ease-in-out infinite}
+@keyframes floaty{0%{transform:translateY(0)}50%{transform:translateY(-20px)}100%{transform:translateY(0)}}
+
+/* Header */
+.header{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-bottom:1px solid var(--glass)}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:20px}
+.title{display:flex;flex-direction:column}
+.title h1{margin:0;font-size:18px;font-weight:900;background:linear-gradient(90deg,var(--accent-1),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.title .sub{font-size:12px;color:var(--muted)}
+.header-actions{display:flex;gap:10px;align-items:center}
+
+/* Layout */
+.container{position:relative;z-index:10;display:grid;grid-template-columns:420px 1fr;gap:18px;padding:20px;min-height:calc(100vh - 84px)}
+@media (max-width:980px){.container{grid-template-columns:1fr;padding:12px}}
+
+.card{background:var(--card);border-radius:var(--radius);padding:16px;border:1px solid var(--glass);box-shadow:var(--shadow);backdrop-filter:blur(6px);transition:transform var(--transition)}
+.card:hover{transform:translateY(-6px)}
+
+.section-title{display:flex;justify-content:space-between;align-items:center}
+.small{font-size:13px;color:var(--muted)}
+.muted{color:var(--muted);font-size:13px}
+
+/* left column styles */
+.left{display:flex;flex-direction:column;gap:16px}
+.tourist-list{list-style:none;margin:8px 0 0 0;padding:0;max-height:44vh;overflow:auto}
+.tourist-item{display:flex;justify-content:space-between;align-items:flex-start;padding:10px;border-radius:10px;margin-bottom:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);border:1px solid rgba(255,255,255,0.02)}
+.tourist-meta{display:flex;flex-direction:column;gap:4px}
+.btn{padding:9px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:800;color:#fff;transition:all var(--transition)}
+.btn-primary{background:linear-gradient(90deg,var(--accent-1),var(--accent-2))}
+.btn-success{background:var(--accent-2)}
+.btn-warn{background:var(--warn);color:#111}
+.btn-danger{background:var(--danger)}
+
+/* alerts list */
+.alerts{max-height:220px;overflow:auto;padding:8px;border-radius:10px;border:1px dashed var(--glass);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+.alert-item{display:flex;justify-content:space-between;gap:12px;padding:10px;border-radius:10px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.03);align-items:center}
+.alert-info{display:flex;flex-direction:column}
+.alert-actions{display:flex;gap:8px}
+
+/* map and right column */
+.right{display:flex;flex-direction:column;gap:16px}
+#map{height:58vh;border-radius:14px;border:1px solid var(--glass);box-shadow:var(--shadow);overflow:hidden}
+@media (max-width:980px){#map{height:44vh}}
+
+/* verify box */
+.verify-box{white-space:pre-wrap;font-family:monospace;font-size:13px;background:rgba(0,0,0,0.06);padding:10px;border-radius:8px;margin-top:8px;color:var(--text);max-height:220px;overflow:auto}
+
+/* scanner modal */
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--glass);padding:16px;z-index:220;border-radius:12px;display:none;width:780px;max-width:96%}
+.modal.open{display:block}
+#video{border-radius:10px;border:1px solid var(--glass);width:540px;height:420px;background:#000}
+
+/* analytics */
+.analytics{display:flex;gap:12px;align-items:center;margin-top:8px}
+.analytics canvas{background:transparent;border-radius:10px;padding:8px}
+
+/* footer */
+.footer{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:12px 18px;background:linear-gradient(180deg,rgba(0,0,0,0.12),rgba(0,0,0,0.06));border-top:1px solid var(--glass);display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}
+.logo-mini{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent-1),var(--accent-2));font-weight:900;color:#fff}
+
+/* subtle pulse for attention */
+.attention{animation: glow 1s infinite alternate}
+@keyframes glow{from{box-shadow:0 0 0 0 rgba(255,77,77,0.06)}to{box-shadow:0 0 22px 8px rgba(255,77,77,0.08)}}
+
+.toast{position:fixed;right:18px;bottom:84px;padding:10px 14px;background:#0f1724;color:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.6);z-index:9999}
+
+</style>
+</head>
+<body data-theme="dark">
+  <div class="bg-shapes" aria-hidden="true">
+    <div class="shape-a"></div>
+    <div class="shape-b"></div>
+  </div>
+
+  <header class="header">
+    <div class="brand">
+      <div class="logo">SY</div>
+      <div class="title">
+        <h1>Suraksha Yatri</h1>
+        <div class="sub">Protecting Travelers, Anytime. Anywhere.</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="small"></div>
+      <button id="notifBtn" class="btn btn-primary"></button>
+      <button id="soundBtn" class="btn btn-warn"></button>
+      <button id="themeBtn" class="btn">☀ Light Mode</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- LEFT -->
+    <div class="left">
+      <div class="card">
+        <div class="section-title">
+          <h3>Registered Tourists</h3>
+          <div class="pill small"></div>
+        </div>
+        <div class="muted small" style="margin-top:6px"></div>
+        <ul id="centralTouristList" class="tourist-list"></ul>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <h3>Live SOS Alerts</h3>
+          <div class="small muted"></div>
+        </div>
+        <div id="alertsBox" class="alerts">
+          <div class="small">No alerts yet.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <h3>Verification & Scanner</h3>
+          <div class="small muted">QR / ID checks</div>
+        </div>
+        <div style="margin-top:8px" class="row">
+          <input id="verifyInput" placeholder="Enter Aadhaar or UID" />
+          <button class="btn btn-primary" onclick="verifyByInput()">Verify</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn btn-primary" onclick="openScanner()">📷 Open Scanner</button>
+          <button class="btn btn-success" onclick="exportCSV()">Export CSV</button>
+        </div>
+        <div id="verifyResult" class="verify-box" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+      <div id="map" class="card"></div>
+
+      <!-- <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Heatmap & Risk Zones</h3>
+          <div class="small">Live</div>
+        </div> -->
+        <!-- <div class="muted small" style="margin-top:8px">Markers are severity-colored. Click an alert to center.</div> -->
+
+        <!-- <div class="analytics" style="margin-top:12px">
+          <canvas id="severityChart" width="220" height="120"></canvas>
+          <canvas id="activityChart" width="220" height="120"></canvas>
+        </div> -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Scanner modal -->
+  <div id="scannerModal" class="modal" aria-hidden="true">
+    <div class="close-x" onclick="stopScanner()" style="position:absolute;right:12px;top:8px;cursor:pointer">✖</div>
+    <h3>QR Scanner</h3>
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <video id="video" autoplay muted playsinline></video>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-primary" onclick="snap()">Scan Frame</button>
+        <input id="imgFile" type="file" accept="image/*"/>
+        <div id="scanStatus" class="small muted">Scanner idle</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <!-- <div style="font-weight:900">Analytics</div> -->
+    </div>
+    <!-- <div class="card-row" style="margin-top:8px">
+      <div class="card">
+        <div style="font-size:20px;font-weight:900" id="anal_count">0</div>
+        <div class="small muted">Active tourists</div>
+      </div>
+      <div class="card">
+        <div style="font-size:20px;font-weight:900" id="anal_open">0</div>
+        <div class="small muted">Open SOS</div>
+      </div>
+      <div class="card">
+        <div style="font-size:20px;font-weight:900" id="anal_resolved">0</div>
+        <div class="small muted">Resolved</div>
+      </div>
+    </div> -->
+
+  <footer class="footer">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="logo-mini">SY</div>
+      <div>
+        <div style="font-weight:800">Suraksha Yatri</div>
+        <div class="small">Authority Panel</div>
+      </div>
+    </div>
+    <div class="small"><span id="year"></span> <a href="mailto:you@example.com"></a></div>
+  </footer>
+
+<script>
+/* ============================
+   Globals & Storage keys
+   ============================ */
+const STORAGE_KEY = 'suraksha_tourists_v1';
+const ALERTS_KEY  = 'suraksha_alerts_v1';
+const CHAT_KEY    = 'suraksha_chat_v1'; // chat messages array of {from:'tourist'|'police', text, time}
+
+let map, heatLayer;
+let policeMarkers = {}; // aadhaarKey -> marker
+let soundOn = true;
+let notifOn = false;
+let scannerStream = null, scannerInterval = null;
+const yearEl = document.getElementById('year'); yearEl.textContent = new Date().getFullYear();
+
+/* ============================
+   Utilities: read/write localStorage
+   ============================ */
+function readCentral(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e){return {}} }
+function writeCentral(obj){ localStorage.setItem(STORAGE_KEY, JSON.stringify(obj)); window.dispatchEvent(new Event('storage')); }
+function readAlerts(){ try { return JSON.parse(localStorage.getItem(ALERTS_KEY) || '[]'); } catch(e){ return [] } }
+function writeAlerts(arr){ localStorage.setItem(ALERTS_KEY, JSON.stringify(arr)); window.dispatchEvent(new Event('storage')); }
+function readChat(){ try { return JSON.parse(localStorage.getItem(CHAT_KEY) || '[]'); } catch(e){return []} }
+function writeChat(arr){ localStorage.setItem(CHAT_KEY, JSON.stringify(arr)); window.dispatchEvent(new Event('storage')); }
+
+/* ============================
+   UI helpers
+   ============================ */
+function toast(msg, duration=3000){
+  const el = document.createElement('div'); el.className='toast'; el.textContent=msg; document.body.appendChild(el);
+  setTimeout(()=> el.style.opacity='0.0', duration-400);
+  setTimeout(()=> el.remove(), duration);
+}
+function notify(title, body){
+  if(notifOn && 'Notification' in window && Notification.permission === 'granted'){
+    try { new Notification(title, { body }); } catch(e){ console.warn(e); }
+  }
+}
+function playSound(){
+  if(!soundOn) return;
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sine'; o.frequency.value = 880;
+    g.gain.value = 0.0;
+    o.connect(g); g.connect(ctx.destination);
+    o.start();
+    g.gain.linearRampToValueAtTime(0.21, ctx.currentTime + 0.01);
+    setTimeout(()=> { g.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.02); setTimeout(()=>{ o.stop(); ctx.close(); }, 50); }, 400);
+  } catch(e){ /* ignore */ }
+}
+
+/* ============================
+   Theme / Notification / Sound toggles
+   ============================ */
+document.getElementById('themeBtn').addEventListener('click', ()=>{
+  const current = document.body.getAttribute('data-theme') || 'dark';
+  const next = current === 'light' ? 'dark' : 'light';
+  document.body.setAttribute('data-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'light' ? '🌙 Dark Mode' : '☀ Light Mode';
+});
+
+document.getElementById('notifBtn').addEventListener('click', async ()=>{
+  if(!('Notification' in window)){ alert('This browser does not support Notifications.'); return; }
+  const p = await Notification.requestPermission();
+  notifOn = p === 'granted';
+  document.getElementById('notifBtn').textContent = notifOn ? 'Notifications: ON' : 'Enable Notifications';
+  toast('Notifications ' + (notifOn ? 'enabled' : 'not enabled'));
+});
+
+document.getElementById('soundBtn').addEventListener('click', ()=>{
+  soundOn = !soundOn;
+  document.getElementById('soundBtn').textContent = soundOn ? '🔊 Sound ON' : '🔕 Sound OFF';
+});
+
+/* ============================
+   Map init
+   ============================ */
+function initMap(){
+  map = L.map('map', {preferCanvas:true}).setView([20.5937,78.9629],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '©️ OpenStreetMap' }).addTo(map);
+  heatLayer = L.heatLayer([], { radius: 25, blur: 14, maxZoom: 17 }).addTo(map);
+
+  // Sample safe zone & risk zone polygons (you can replace with real geojson)
+  const safeZone = L.polygon([[28.65,77.20],[28.66,77.24],[28.62,77.25],[28.60,77.22]], { color:'#1fb954', fillColor:'#1fb954', fillOpacity:0.05 }).addTo(map).bindPopup('Safe Zone');
+  const riskZone = L.polygon([[28.61,77.19],[28.61,77.24],[28.59,77.24],[28.59,77.19]], { color:'#ff4d4d', fillColor:'#ff4d4d', fillOpacity:0.06 }).addTo(map).bindPopup('Risk Zone');
+}
+initMap();
+
+/* ============================
+   Icon helpers (severity visual)
+   ============================ */
+function severityColor(sev){ return sev === 3 ? '#ff4d4d' : (sev === 2 ? '#ffb300' : '#00c853'); }
+function makeIcon(sev, pulse=false){
+  const color = severityColor(sev || 1);
+  const size = pulse ? 28 : 18;
+  const html = `<div style="
+    width:${size}px;height:${size}px;border-radius:50%;
+    background:${color};display:inline-block;border:2px solid rgba(255,255,255,0.06);
+    box-shadow:0 6px 18px rgba(0,0,0,0.45)"></div>`;
+  return L.divIcon({ className:'', html, iconSize:[size,size], iconAnchor:[size/2,size/2] });
+}
+
+/* ============================
+   Render tourists & markers
+   ============================ */
+function refreshTourists(){
+  const central = readCentral();
+  const ul = document.getElementById('centralTouristList');
+  ul.innerHTML = '';
+  const heat = [];
+
+  for(const aad in central){
+    const t = central[aad];
+    const li = document.createElement('li'); li.className='tourist-item';
+    const meta = document.createElement('div'); meta.className='tourist-meta';
+    const nameEl = document.createElement('div'); nameEl.style.fontWeight='700'; nameEl.textContent = t.name || 'Unknown';
+    const infoEl = document.createElement('div'); infoEl.className='small muted'; infoEl.textContent = `Aadhaar: ${aad} • UID: ${t.uniqueID || '-'}`;
+    const lastEl = document.createElement('div'); lastEl.className='small muted'; lastEl.textContent = `Last: ${t.last ? t.last.map(n=>Number(n).toFixed(4)).join(', ') : 'N/A'}`;
+    meta.appendChild(nameEl); meta.appendChild(infoEl); meta.appendChild(lastEl);
+const actions = document.createElement('div'); 
+actions.style.display = 'flex'; 
+actions.style.gap = '8px';
+
+const btnCenter = document.createElement('button'); 
+btnCenter.className = 'btn btn-primary'; 
+btnCenter.textContent = 'Center';
+btnCenter.onclick = ()=> centerOn(t.uniqueID || aad);
+
+const btnVerify = document.createElement('button'); 
+btnVerify.className = 'btn btn-primary'; 
+btnVerify.textContent = 'Verify';
+btnVerify.onclick = ()=> showVerification(t);
+
+const btnDelete = document.createElement('button'); 
+btnDelete.className = 'btn btn-danger'; 
+btnDelete.textContent = 'Delete';
+btnDelete.onclick = ()=> removeTourist(aad);
+
+actions.appendChild(btnCenter); 
+actions.appendChild(btnVerify); 
+actions.appendChild(btnDelete);
+
+    li.appendChild(meta); li.appendChild(actions);
+    ul.appendChild(li);
+
+    // map marker
+    if(t.last && Array.isArray(t.last)){
+      heat.push([Number(t.last[0]), Number(t.last[1]), 0.6]);
+      const key = aad;
+      const sev = t.severity || 1;
+      const isActive = !!t.activeSOS;
+      if(!policeMarkers[key]){
+        policeMarkers[key] = L.marker(t.last, { icon: makeIcon(sev, isActive) }).addTo(map).bindPopup(`<b>${escapeHtml(t.name || 'Unknown')}</b><br/>UID: ${escapeHtml(t.uniqueID || aad)}`);
+      } else {
+        policeMarkers[key].setLatLng(t.last);
+        policeMarkers[key].setIcon(makeIcon(sev, isActive));
+      }
+    }
+  }
+
+  heatLayer.setLatLngs(heat);
+  refreshAnalytics();
+}
+
+/* small escaping for innerHTML safety */
+function escapeHtml(s){ if(!s && s !== 0) return ''; return String(s).replace(/[&<>"'`=\/]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#x60;','=':'&#x3D;','/':'&#x2F;'})[c]); }
+
+/* ============================
+   Alerts UI
+   ============================ */
+function refreshAlerts(){
+  const alerts = readAlerts();
+  const box = document.getElementById('alertsBox');
+  box.innerHTML = '';
+  if(!alerts.length){ box.innerHTML = '<div class="small">No alerts yet.</div>'; box.classList.remove('attention'); return; }
+  alerts.slice().reverse().forEach(a => {
+    const div = document.createElement('div'); div.className='alert-item';
+    const left = document.createElement('div'); left.className='alert-info';
+    const title = document.createElement('div'); title.innerHTML = `🚨 <strong>${escapeHtml(a.name)}</strong> • <small class="small">${escapeHtml(a.uniqueID)}</small>`;
+    const time = document.createElement('div'); time.className='small muted'; time.textContent = `${escapeHtml(a.time)} • ${a.severity ? 'Severity ' + a.severity : ''}`;
+    left.appendChild(title); left.appendChild(time);
+
+    const actions = document.createElement('div'); actions.className='alert-actions';
+    const viewBtn = document.createElement('button'); viewBtn.className='btn btn-primary'; viewBtn.textContent='View';
+    viewBtn.onclick = ()=> { if(Array.isArray(a.coords)) map.setView(a.coords, 15); else toast('No coords'); };
+    const ackBtn = document.createElement('button'); ackBtn.className='btn btn-success'; ackBtn.textContent='Acknowledge';
+    ackBtn.onclick = ()=> acknowledgeAlert(a.id, a.uniqueID);
+    actions.appendChild(viewBtn); actions.appendChild(ackBtn);
+
+    div.appendChild(left); div.appendChild(actions);
+    box.appendChild(div);
+
+    // marker highlight
+    if(policeMarkers[a.aadhaar || a.uniqueID]){
+      policeMarkers[a.aadhaar || a.uniqueID].setIcon(makeIcon(a.severity||2, true));
+    } else {
+      // temporary marker to highlight
+      if(Array.isArray(a.coords)){
+        const tmp = L.marker(a.coords, { icon: makeIcon(a.severity||2, true) }).addTo(map);
+        setTimeout(()=> map.removeLayer(tmp), 12000);
+      }
+    }
+  });
+  box.classList.add('attention');
+  // subtle sound / notif for newest
+  const newest = alerts[alerts.length-1];
+  notify('SOS Received', `${newest.name} • ${newest.uniqueID}`);
+  playSound();
+  setTimeout(()=> box.classList.remove('attention'), 1600);
+}
+
+/* Acknowledge: set tourist ack key and remove alert */
+function acknowledgeAlert(id, uid){
+  // set tourist ack key so Tourist dashboard can show "Help is on the way"
+  localStorage.setItem('tourist_ack_' + (uid || id), JSON.stringify({ id, time: new Date().toLocaleString(), message: 'Help is on the way' }));
+  // remove alert from list
+  let alerts = readAlerts();
+  alerts = alerts.filter(a => a.id !== id);
+  writeAlerts(alerts);
+  // update central to clear activeSOS
+  const central = readCentral();
+  for(const aad in central){
+    if(central[aad].uniqueID === uid){
+      central[aad].activeSOS = false;
+      central[aad].ackTime = new Date().toLocaleString();
+      writeCentral(central);
+      break;
+    }
+  }
+  refreshAlerts();
+  refreshTourists();
+  toast('✔ Help is on the way');
+}
+
+/* Force SOS for a tourist (manual) */
+function forceSOS(aad){
+  const central = readCentral();
+  const t = central[aad] || null;
+  const uid = t ? t.uniqueID : aad;
+  const coords = t && t.last ? t.last : [20.5937,78.9629];
+  const severity = t && t.severity ? t.severity : 2;
+  const alerts = readAlerts();
+  alerts.push({ id: Date.now().toString(), uniqueID: uid, name: t ? t.name : 'Unknown', coords, time: new Date().toLocaleString(), severity });
+  writeAlerts(alerts);
+  // mark active
+  if(t){ t.activeSOS = true; t.severity = severity; writeCentral(central); }
+  refreshAlerts();
+  refreshTourists();
+}
+
+/* ============================
+   Center / remove / verify helpers
+   ============================ */
+function centerOn(uid){
+  const central = readCentral();
+  for(const aad in central){
+    const t = central[aad];
+    if(t.uniqueID === uid && t.last){ map.setView(t.last, 15); if(policeMarkers[aad]) policeMarkers[aad].openPopup(); return; }
+  }
+  toast('Location not available');
+}
+function removeTourist(aad){
+  if(!confirm('Delete this tourist record?')) return;
+  const central = readCentral(); delete central[aad]; writeCentral(central);
+  if(policeMarkers[aad]){ try{ map.removeLayer(policeMarkers[aad]); } catch(e){} delete policeMarkers[aad]; }
+  refreshTourists();
+  toast('Tourist removed');
+}
+function showVerification(t){
+  const box = document.getElementById('verifyResult'); box.style.display='block'; box.textContent = JSON.stringify(t, null, 2);
+}
+
+/* ============================
+   CSV Export
+   ============================ */
+function exportCSV(){
+  const central = readCentral();
+  const rows = [['Name','Aadhaar','UID','Itinerary','Emergency','LastLat','LastLng','RegisteredOn','ActiveSOS','Severity']];
+  for(const aad in central){
+    const t = central[aad];
+    rows.push([t.name||'', aad, t.uniqueID||'', t.it||'', t.em||'', t.last? t.last[0] : '', t.last? t.last[1] : '', t.date||'', t.activeSOS? 'YES' : 'NO', t.severity||'']);
+  }
+  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'tourists_export.csv'; a.click(); URL.revokeObjectURL(url);
+  toast('CSV exported');
+}
+
+/* ============================
+   QR Scanner (camera + file)
+   ============================ */
+const scannerModal = document.getElementById('scannerModal');
+const video = document.getElementById('video');
+
+function openScanner(){
+  scannerModal.classList.add('open');
+  startScanner();
+}
+async function startScanner(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    alert('Camera not supported');
+    return;
+  }
+  try{
+    scannerStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' } });
+    video.srcObject = scannerStream;
+    await video.play();
+    document.getElementById('scanStatus').textContent = 'Camera active — scanning...';
+    if(scannerInterval) clearInterval(scannerInterval);
+    scannerInterval = setInterval(()=> scanFrame(video), 700);
+  } catch(e){ console.error(e); document.getElementById('scanStatus').textContent = 'Camera not accessible'; }
+}
+function stopScanner(){
+  scannerModal.classList.remove('open');
+  if(scannerInterval) { clearInterval(scannerInterval); scannerInterval = null; }
+  if(scannerStream){ scannerStream.getTracks().forEach(t=>t.stop()); scannerStream = null; }
+  document.getElementById('scanStatus').textContent = 'Scanner stopped';
+}
+function snap(){ scanFrame(video, true); }
+function scanFrame(video, force=false){
+  if(!video || video.readyState !== video.HAVE_ENOUGH_DATA) { if(force) toast('No video frame'); return; }
+  const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const id = ctx.getImageData(0,0,canvas.width,canvas.height);
+  const code = jsQR(id.data, id.width, id.height);
+  if(code && code.data){
+    handleScanned(code.data);
+    stopScanner();
+  } else if(force){ toast('No QR in frame'); }
+}
+document.getElementById('imgFile').addEventListener('change', function(e){
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = function(ev){
+    const img = new Image(); img.onload = function(){
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const ctx = c.getContext('2d'); ctx.drawImage(img,0,0);
+      const id = ctx.getImageData(0,0,c.width,c.height);
+      const code = jsQR(id.data, id.width, id.height);
+      if(code && code.data) handleScanned(code.data); else toast('No QR found');
+    }; img.src = ev.target.result;
+  }; r.readAsDataURL(f);
+});
+function handleScanned(text){
+  // try JSON payload (tourist digital ID) else treat as UID string
+  try{
+    const parsed = JSON.parse(text);
+    if(parsed.uniqueID){ showVerification(parsed); toast('QR verified'); }
+    else { document.getElementById('verifyInput').value = text; verifyByInput(); }
+  } catch(e){
+    document.getElementById('verifyInput').value = text; verifyByInput();
+  }
+}
+
+/* ============================
+   Verify by input field
+   ============================ */
+function verifyByInput(){
+  const q = (document.getElementById('verifyInput').value || '').trim();
+  if(!q){ toast('Enter Aadhaar or UID'); return; }
+  const central = readCentral();
+  let found = null;
+  for(const aad in central){
+    const t = central[aad];
+    if(aad === q || (t.uniqueID && t.uniqueID === q)){ found = t; break; }
+  }
+  const box = document.getElementById('verifyResult');
+  box.style.display = 'block';
+  box.textContent = found ? JSON.stringify(found, null, 2) : 'Not found';
+  if(found && found.last) map.setView(found.last, 15);
+}
+
+/* ============================
+   Alerts & Tourists: demo seed if empty
+   ============================ */
+(function seedDemo(){
+  if(!localStorage.getItem(STORAGE_KEY)){
+    const demo = {
+      '123456789012':{ name:'Rahul Sharma', ad:'123456789012', uniqueID:'UID001', it:'Shimla', em:'+911234567890', last:[28.6139,77.2090], date:(new Date()).toLocaleString(), severity:2 },
+      '987654321098':{ name:'Neha Verma', ad:'987654321098', uniqueID:'UID002', last:[19.0760,72.8777], date:(new Date()).toLocaleString(), severity:1 },
+      '111122223333':{ name:'Amit Singh', ad:'111122223333', uniqueID:'UID003', last:[13.0827,80.2707], date:(new Date()).toLocaleString(), severity:3 }
+    };
+    writeCentral(demo);
+  }
+  if(!localStorage.getItem(CHAT_KEY)) writeChat([]);
+})();
+
+/* ============================
+   Storage events: sync across windows
+   ============================ */
+window.addEventListener('storage', (e)=>{
+  if(e.key === STORAGE_KEY || e.key === 'tourist_update') refreshTourists();
+  if(e.key === ALERTS_KEY || e.key === 'tourist_sos') refreshAlerts();
+  if(e.key === CHAT_KEY || e.key === 'tourist_msg') renderChat();
+});
+
+/* ============================
+   Periodic marker sync
+   ============================ */
+setInterval(()=> {
+  const central = readCentral();
+  for(const aad in central){
+    const t = central[aad];
+    if(t.last) updateMarker(aad, t.last, t.severity, t.activeSOS);
+  }
+  refreshTourists();
+  refreshAlerts();
+}, 3000);
+
+/* ============================
+   Update / create police marker helper
+   ============================ */
+function updateMarker(aad, coords, severity=1, active=false){
+  if(!coords) return;
+  if(policeMarkers[aad]) policeMarkers[aad].setLatLng(coords);
+  else policeMarkers[aad] = L.marker(coords, { icon: makeIcon(severity, active) }).addTo(map).bindPopup((readCentral()[aad]?.name) || 'Tourist');
+  // rebuild heat
+  const all = [];
+  Object.keys(policeMarkers).forEach(k => {
+    try { const p = policeMarkers[k].getLatLng(); all.push([p.lat, p.lng, 0.5]); } catch(e){}
+  });
+  heatLayer.setLatLngs(all);
+}
+function makeIcon(sev, pulse=false){
+  const color = severityColor(sev || 1);
+  const size = pulse ? 28 : 18;
+  const html = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.06);box-shadow:0 8px 20px rgba(0,0,0,0.5)"></div>`;
+  return L.divIcon({ className:'', html, iconSize:[size,size], iconAnchor:[size/2,size/2] });
+}
+
+/* ============================
+   Acknowledge helper (when police ack an alert, tourist receives single message)
+   - We set localStorage key 'tourist_ack_<UID>' with {id,time,message}
+   ============================ */
+function acknowledgeSOSByUID(uid){
+  localStorage.setItem('tourist_ack_' + uid, JSON.stringify({ id: Date.now().toString(), time: new Date().toLocaleString(), message: 'Help is on the way' }));
+}
+
+/* ============================
+   Chat: render & send
+   - Tourists should push messages into CHAT_KEY with {from:'tourist', text, time}
+   - Police messages are appended with from:'police'
+   ============================ */
+const chatContainer = (() => {
+  // simple chat area appended to alerts box for quick replies
+  const parent = document.createElement('div');
+  parent.style.marginTop = '12px';
+  parent.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Live Chat</strong><span class="small muted"></span>
+    </div>
+    <div id="chatMessages" style="margin-top:8px;padding:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);border-radius:8px;height:160px;overflow:auto"></div>
+    <div id="chatInput" style="display:flex;gap:8px;margin-top:8px">
+      <input id="chatText" placeholder="Type message to tourist..." style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--glass);background:transparent;color:var(--text)"/>
+      <button id="chatSendBtn" class="btn btn-primary">Send</button>
+    </div>`;
+  document.querySelector('.left .card:last-child').appendChild(parent);
+  return { parent, messagesEl: parent.querySelector('#chatMessages'), inputEl: parent.querySelector('#chatText'), sendBtn: parent.querySelector('#chatSendBtn') };
+})();
+chatContainer.sendBtn.addEventListener('click', () => {
+  const txt = chatContainer.inputEl.value.trim(); if(!txt) return;
+  const arr = readChat(); arr.push({ from:'police', text: txt, time: new Date().toLocaleString() }); writeChat(arr);
+  chatContainer.inputEl.value = '';
+  renderChat();
+});
+function renderChat(){
+  const arr = readChat();
+  chatContainer.messagesEl.innerHTML = '';
+  arr.slice().forEach(m => {
+    const d = document.createElement('div'); d.style.margin='6px 0';
+    d.style.padding = '8px 10px'; d.style.borderRadius='8px'; d.style.maxWidth='85%';
+    if(m.from === 'police'){ d.style.marginLeft='auto'; d.style.background = 'linear-gradient(90deg,var(--accent-1),var(--accent-2))'; d.style.color = '#000'; }
+    else { d.style.background = '#202534'; d.style.color = 'var(--text)'; }
+    d.textContent = `${m.text} ${m.time ? ' • ' + m.time : ''}`;
+    chatContainer.messagesEl.appendChild(d);
+  });
+  chatContainer.messagesEl.scrollTop = chatContainer.messagesEl.scrollHeight;
+}
+renderChat();
+
+/* ============================
+   When tourist sends a chat message:
+   - They append to CHAT_KEY and optionally set 'tourist_msg' key to trigger storage event
+   - This panel auto-renders via storage event
+   ============================ */
+
+/* ============================
+   Analytics: Chart.js
+   ============================ */
+const severityCtx = document.getElementById('severityChart').getContext('2d');
+const severityChart = new Chart(severityCtx, {
+  type: 'doughnut',
+  data: { labels:['Low','Medium','High'], datasets: [{ data:[0,0,0], backgroundColor:['#00c853','#ffb300','#ff4d4d'] }] },
+  options: { plugins:{legend:{position:'bottom'}}, maintainAspectRatio:false }
+});
+const activityCtx = document.getElementById('activityChart').getContext('2d');
+const activityChart = new Chart(activityCtx, {
+  type: 'bar',
+  data: { labels:[], datasets:[{ label:'Active Tourists', data:[], backgroundColor:'#2a9df4' }] },
+  options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}}, maintainAspectRatio:false }
+});
+function refreshAnalytics(){
+  const central = readCentral();
+  const counts = [0,0,0]; const labels=[]; const data=[];
+  for(const aad in central){
+    const t = central[aad];
+    const s = t.severity || 1;
+    counts[s-1] = (counts[s-1]||0)+1;
+    labels.push(t.uniqueID || aad); data.push(t.last ? 1 : 0);
+  }
+  severityChart.data.datasets[0].data = counts; severityChart.update();
+  activityChart.data.labels = labels.slice(-10); activityChart.data.datasets[0].data = data.slice(-10); activityChart.update();
+}
+
+/* ============================
+   Helper functions used by tourist dashboard integration
+   - When police acknowledges, set 'tourist_ack_UID' key (done in acknowledgeAlert)
+   - Tourist dashboard should poll or listen to storage for that key and show single concise message
+   ============================ */
+
+/* ============================
+   Initial render & periodic sync
+   ============================ */
+refreshTourists(); refreshAlerts();
+
+/* If there are existing alerts, add attention class */
+if(readAlerts().length > 0) document.getElementById('alertsBox').classList.add('attention');
+
+/* ============================
+   Demo: listen for 'tourist_sos' key to auto-refresh (tourist page may set)
+   ============================ */
+window.addEventListener('storage', (e) => {
+  if(e.key === 'tourist_sos' || e.key === ALERTS_KEY) {
+    refreshAlerts();
+    refreshTourists();
+  }
+  if(e.key === CHAT_KEY) renderChat();
+});
+
+/* ============================
+   Support functions to simulate or test quickly (not required in prod)
+   ============================ */
+/* allow manual add alert via console: addTestAlert(aad) */
+window.addTestAlert = function(aad){
+  const central = readCentral();
+  const t = central[aad];
+  const alerts = readAlerts();
+  alerts.push({ id: Date.now().toString(), uniqueID: t ? t.uniqueID : aad, name: t ? t.name : 'Unknown', coords: t && t.last ? t.last : [20.5937,78.9629], time: new Date().toLocaleString(), severity: t && t.severity ? t.severity : 2 });
+  writeAlerts(alerts); refreshAlerts(); refreshTourists();
+  console.info('Test alert created');
+};
+
+/* ============================
+   Final housekeeping on unload
+   ============================ */
+window.addEventListener('beforeunload', ()=> {
+  try{ stopScanner(); } catch(e){}
+});
+
+</script>
+</body>
+</html>

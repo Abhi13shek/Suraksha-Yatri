@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Abhishek Singh — Personal Portfolio</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <!-- NAVIGATION -->
+  <header class="site-header">
+    <div class="header-left">
+      <h1>Abhishek Singh</h1>
+      <p class="tagline">Frontend Developer in Progress — Building clean, accessible web pages</p>
+    </div>
+
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="#about">About</a>
+      <a href="#skills">Skills</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- INTRODUCTION -->
+    <section id="about" class="section">
+      <h2>Introduction</h2>
+      <div class="intro-grid">
+        <p>
+          Hello — I'm Abhishek, a self-taught web developer focused on building accessible and responsive user
+          interfaces. I enjoy turning designs into interactive websites and learning modern web tooling.
+        </p>
+        <p>
+          I’m currently practicing HTML, CSS, and JavaScript. When I’m not coding, I like reading technical articles
+          and following tutorials to sharpen my skills.
+        </p>
+      </div>
+    </section>
+
+    <!-- SKILLS -->
+    <section id="skills" class="section">
+      <h2>Skills</h2>
+      <p>Core technologies and tools I use:</p>
+      <ul class="skills-list">
+        <li><span>HTML & Semantic Markup</span><span class="level">Advanced</span></li>
+        <li><span>CSS (Flexbox, Grid)</span><span class="level">Intermediate</span></li>
+        <li><span>JavaScript (ES6+)</span><span class="level">Intermediate</span></li>
+        <li><span>Version control (Git)</span><span class="level">Intermediate</span></li>
+        <li><span>Responsive Design</span><span class="level">Intermediate</span></li>
+      </ul>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="projects" class="section">
+      <h2>Projects</h2>
+      <p>Selected projects with descriptions and links.</p>
+
+      <div class="card-grid">
+        <article class="card">
+          <h3>Portfolio Website (this site)</h3>
+          <p>Simple semantic HTML structure with a responsive layout, focused on accessibility and clarity.</p>
+          <p><strong>Tech:</strong> HTML, CSS</p>
+          <a class="card-link" href="#contact">View details / contact me →</a>
+        </article>
+
+        <article class="card">
+          <h3>To-Do App</h3>
+          <p>A JavaScript app to add, edit, and remove tasks. Data saved using localStorage.</p>
+          <p><strong>Tech:</strong> HTML, CSS, JavaScript</p>
+          <p>
+            <a class="card-link" href="#">Live demo</a> |
+            <a class="card-link" href="#">Source</a>
+          </p>
+        </article>
+
+        <article class="card">
+          <h3>CSS Gallery</h3>
+          <p>A gallery demonstrating layout experiments using CSS Grid and Flexbox.</p>
+          <p><strong>Tech:</strong> CSS Grid, Flexbox</p>
+          <p>
+            <a class="card-link" href="#">Live demo</a> |
+            <a class="card-link" href="#">Source</a>
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section id="contact" class="section">
+      <h2>Contact</h2>
+      <p>You can send a message using this form:</p>
+
+      <form id="contact-form" method="post" action="#" novalidate>
+        <label>
+          Name
+          <input name="name" type="text" placeholder="Your name" required>
+        </label>
+
+        <label>
+          Email
+          <input name="email" type="email" placeholder="you@example.com" required>
+        </label>
+
+        <label>
+          Reason
+          <select name="reason">
+            <option value="project">Project inquiry</option>
+            <option value="job">Job opportunity</option>
+            <option value="other" selected>Other</option>
+          </select>
+        </label>
+
+        <label>
+          Message
+          <textarea name="message" rows="6" placeholder="Tell me about your project or question" required></textarea>
+        </label>
+
+        <button type="submit">Send message</button>
+      </form>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Check your HTML on <a href="https://validator.w3.org/" target="_blank">validator.w3.org</a></p>
+    <p>&copy; <span id="year"></span> Abhishek Singh — Built with clarity and accessibility</p>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

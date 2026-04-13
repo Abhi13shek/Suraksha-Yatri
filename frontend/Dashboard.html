@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>SurakshaYatri — Authority Dashboard (Pro)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#071126; --card:#071a2a; --muted:#98a9bf; --text:#e6eef6;
+    --accent:#3ab0ff; --accent-2:#00d084; --danger:#ff5160;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+  body{background:linear-gradient(180deg,#001024,#071126); color:var(--text); -webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:center;padding:14px 20px;position:sticky;top:0;background:linear-gradient(180deg, rgba(0,0,0,0.25), transparent);z-index:60}
+  .brand{flex:1;text-align:center}
+  h1{margin:0;font-weight:900;font-size:20px;background:linear-gradient(90deg,var(--accent),var(--accent-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .top-actions{display:flex;gap:8px;align-items:center}
+  .chip{font-size:13px;color:var(--muted)}
+  main{display:grid;grid-template-columns:320px 1fr;gap:18px;padding:18px;height:calc(100vh - 74px)}
+  .panel{background:var(--card);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 14px 40px rgba(0,0,0,0.6)}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  #map{height:74vh;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+  button{cursor:pointer}
+  .btn{padding:8px 12px;border-radius:10px;border:0;font-weight:800}
+  .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#002}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)}
+  .btn-danger{background:linear-gradient(90deg,#ff6b76,#ff2d55);color:#fff}
+  .alert-item{padding:10px;border-radius:10px;margin-bottom:10px;background:rgba(0,0,0,0.03);display:flex;justify-content:space-between;align-items:center}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03);font-size:13px}
+  th{font-weight:800}
+  .search{padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);width:100%}
+  .card-row{display:flex;gap:12px}
+  .card{flex:1;padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.02)}
+  /* professional chat modal */
+  #authChat{position:fixed;left:22px;bottom:22px;width:420px;border-radius:12px;padding:0;overflow:hidden;z-index:80;border:1px solid rgba(255,255,255,0.04);background:var(--card);box-shadow:0 20px 60px rgba(0,0,0,0.6)}
+  #authChatHeader{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid rgba(255,255,255,0.02)}
+  #authChatBody{padding:12px;max-height:48vh;overflow:auto}
+  .chat-msg{padding:10px;border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.02)}
+  /* legend */
+  .legend{display:flex;gap:12px;align-items:center}
+  .legend .dot{width:12px;height:12px;border-radius:3px}
+  .dot.safe{background:#00c853}
+  .dot.risk{background:#ff4d4d}
+  @media(max-width:980px){
+    main{grid-template-columns:1fr; height:auto}
+    #authChat{left:12px;right:12px;width:auto}
+  }
+</style>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="chip">👮 SurakshaYatri • Authority</div>
+    <div class="brand"><h1>SurakshaYatri — Police Dashboard (Pro)</h1></div>
+    <div class="top-actions">
+      <button id="themeBtn" class="btn btn-ghost">☀ Toggle Theme</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- left control panel -->
+    <aside class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:900">Central Registered Tourists</div>
+          <div class="small muted">Live view (localStorage sync)</div>
+        </div>
+        <div class="legend">
+          <div class="dot safe"></div><div class="small">Safe</div>
+          <div class="dot risk" style="margin-left:6px"></div><div class="small">Risk</div>
+        </div>
+      </div>
+
+      <input id="tableSearch" class="search" placeholder="Search name / aadhaar / uid" style="margin-top:12px"/>
+
+      <div style="margin-top:12px;height:300px;overflow:auto">
+        <table id="touristTable">
+          <thead><tr><th>Name</th><th>Aadhaar</th><th>UID</th><th>Last</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="zoomAllMarkers()">Zoom to All</button>
+        <button class="btn btn-ghost" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-ghost" onclick="exportExcel()">Export Excel</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div style="font-weight:900">Live SOS Alerts</div>
+        <div id="alertsBox" style="margin-top:8px;max-height:180px;overflow:auto"></div>
+      </div>
+    </aside>
+
+    <!-- right main -->
+    <section>
+      <div class="panel" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:900">Map • Heatmap • Zones</div>
+          <div class="small muted">Live positions update every few seconds</div>
+        </div>
+        <div>
+          <button class="btn btn-primary" onclick="refreshCentralList()">Refresh</button>
+        </div>
+      </div>
+
+      <div id="map"></div>
+
+      <div class="panel" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-weight:900">Analytics</div>
+        </div>
+        <div class="card-row" style="margin-top:8px">
+          <div class="card">
+            <div style="font-size:20px;font-weight:900" id="anal_count">0</div>
+            <div class="small muted">Active tourists</div>
+          </div>
+          <div class="card">
+            <div style="font-size:20px;font-weight:900" id="anal_open">0</div>
+            <div class="small muted">Open SOS</div>
+          </div>
+          <div class="card">
+            <div style="font-size:20px;font-weight:900" id="anal_resolved">0</div>
+            <div class="small muted">Resolved</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <canvas id="sosTrend" style="max-width:100%;height:120px"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Authority Chat -->
+  <div id="authChat">
+    <div id="authChatHeader">
+      <div style="font-weight:900">Chat • Tourist</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="authTarget" placeholder="Aadhaar or UID" style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03)"/>
+        <button class="btn btn-primary" onclick="authSendChat()">Send</button>
+      </div>
+    </div>
+    <div id="authChatBody" style="padding:12px;max-height:40vh;overflow:auto"></div>
+    <div style="display:flex;gap:8px;padding:10px;border-top:1px solid rgba(255,255,255,0.02)">
+      <input id="authMsg" placeholder="Type message..." style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03)"/>
+      <button class="btn btn-primary" onclick="authSendChat()">Send</button>
+    </div>
+  </div>
+
+<script>
+/* -------------
+   Globals
+---------------*/
+const STORAGE_KEY = 'suraksha_tourists_v1';
+const ALERTS_KEY  = 'suraksha_alerts_v1';
+let map, heatLayer;
+let policeMarkers = {};
+let resolvedCount = 0;
+let sosTrendData = []; // array of counts over time for chart
+
+/* -------------
+   Theme
+---------------*/
+document.getElementById('themeBtn').addEventListener('click', ()=>{
+  document.body.setAttribute('data-theme', document.body.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+});
+
+/* -------------
+   Map init
+---------------*/
+function initMap(){
+  map = L.map('map').setView([20.5937,78.9629],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'©️ OpenStreetMap' }).addTo(map);
+  heatLayer = L.heatLayer([], { radius:25, blur:18, maxZoom:17 }).addTo(map);
+
+  // safe/risk polygons
+  const safeZone = L.polygon([[28.64,77.21],[28.65,77.35],[28.56,77.30],[28.55,77.20]], { color: '#00c853', fillColor: '#00c853', fillOpacity:0.08, weight:1 }).addTo(map).bindPopup('Safe Zone');
+  const riskZone = L.polygon([[26.85,80.90],[26.90,81.05],[26.75,81.00],[26.70,80.87]], { color: '#ff4d4d', fillColor: '#ff4d4d', fillOpacity:0.10, weight:1 }).addTo(map).bindPopup('Risk Zone');
+
+  const legend = L.control({position:'topright'});
+  legend.onAdd = function(){
+    const div = L.DomUtil.create('div','legend');
+    div.innerHTML = `<div style="background:rgba(0,0,0,0.35);padding:8px;border-radius:8px;color:#fff;font-size:13px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;background:#00c853;display:inline-block;border-radius:2px"></span>Safe Zone</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="width:12px;height:12px;background:#ff4d4d;display:inline-block;border-radius:2px"></span>Risk Zone</div>
+    </div>`;
+    return div;
+  }
+  legend.addTo(map);
+}
+initMap();
+
+/* -------------
+   Storage helpers
+---------------*/
+function readCentral(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }catch(e){ return {}; } }
+function writeCentral(obj){ localStorage.setItem(STORAGE_KEY, JSON.stringify(obj)); window.dispatchEvent(new Event('storage')); }
+function readAlerts(){ try{ return JSON.parse(localStorage.getItem(ALERTS_KEY) || '[]'); }catch(e){ return []; } }
+function writeAlerts(arr){ localStorage.setItem(ALERTS_KEY, JSON.stringify(arr)); window.dispatchEvent(new Event('storage')); }
+
+/* -------------
+   Render tourist table
+---------------*/
+function refreshCentralList(){
+  const central = readCentral();
+  const tbody = document.querySelector('#touristTable tbody'); tbody.innerHTML = '';
+  Object.keys(central).forEach(ad=>{
+    const t = central[ad];
+    const tr = document.createElement('tr');
+    const lastStr = t.last ? (t.last.map(n=>Number(n).toFixed(4)).join(', ')) : 'N/A';
+    tr.innerHTML = `<td>${t.name || 'Unknown'}</td><td>${ad}</td><td>${t.uniqueID || '-'}</td><td>${lastStr}</td>
+      <td>
+        <button class="btn btn-primary" onclick="centerOn('${ad}')">Center</button>
+        <button class="btn btn-ghost" onclick="showHistory('${ad}')">History</button>
+        <button class="btn btn-danger" onclick="deleteTourist('${ad}')">Delete</button>
+      </td>`;
+    tbody.appendChild(tr);
+    // update marker
+    if(t.last && Array.isArray(t.last)){
+      updatePoliceMarker(ad, t.last);
+    }
+  });
+  updateAnalytics();
+}
+
+/* -------------
+   Alerts render
+---------------*/
+function renderAlerts(){
+  const box = document.getElementById('alertsBox'); box.innerHTML = '';
+  const alerts = readAlerts();
+  if(alerts.length===0){ box.innerHTML = '<div class="small muted">No alerts</div>'; return; }
+  alerts.forEach(a=>{
+    const div = document.createElement('div'); div.className = 'alert-item';
+    const left = document.createElement('div');
+    left.innerHTML = `<div style="font-weight:900">${a.name} • <span class="small">${a.time}</span></div><div class="small">Last: ${a.coords ? a.coords.map(n=>Number(n).toFixed(4)).join(', ') : 'N/A'}</div><div class="small" style="margin-top:6px">${a.message || ''}</div>`;
+    const right = document.createElement('div');
+    right.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn btn-primary" onclick="ack('${a.id}','${a.aadhaar||a.ad}')">Acknowledge</button>
+      <button class="btn btn-ghost" onclick="centerOn('${a.aadhaar||a.ad}')">Center</button>
+      <button class="btn btn-danger" onclick="resolve('${a.id}','${a.aadhaar||a.ad}')">Resolve</button>
+    </div>`;
+    div.appendChild(left); div.appendChild(right);
+    box.appendChild(div);
+    // optionally add SOS marker
+    if(a.coords && Array.isArray(a.coords)){
+      try{ L.marker(a.coords).addTo(map).bindPopup('SOS: ' + a.name); }catch(e){}
+    }
+  });
+  updateAnalytics();
+}
+
+/* -------------
+   Acknowledge
+---------------*/
+function ack(id, aadhaar){
+  let alerts = readAlerts();
+  const idx = alerts.findIndex(x=>x.id === id);
+  if(idx===-1) return alert('Alert not found');
+  const removed = alerts.splice(idx,1)[0];
+  writeAlerts(alerts);
+  // set acknowledgement for tourist
+  const central = readCentral();
+  const rec = central[aadhaar] || Object.values(central).find(x=>x.uniqueID === aadhaar);
+  const uid = (rec && rec.uniqueID) ? rec.uniqueID : (removed.uniqueID || aadhaar);
+  // set two forms: specific key and a simple flag for quick detection/display
+  localStorage.setItem('tourism_ack_' + uid, `Acknowledged at ${new Date().toLocaleString()}`);
+  localStorage.setItem('tourism_ack_simple_' + uid, '1');
+  localStorage.setItem('tourism_ack_by_aadhaar_' + aadhaar, Date.now().toString());
+  // audit add
+  const audit = readAlerts(); // reuse alerts store as authority log for demo
+  audit.push({ id:'ack_'+Date.now().toString(), name: removed.name, aadhaar, time: new Date().toLocaleString(), note:'Acknowledged by Authority' });
+  localStorage.setItem(ALERTS_KEY, JSON.stringify(audit));
+  window.dispatchEvent(new Event('storage'));
+  alert('Acknowledged');
+  renderAlerts();
+  refreshCentralList();
+}
+
+/* -------------
+   Resolve
+---------------*/
+function resolve(id, aadhaar){
+  let alerts = readAlerts();
+  const idx = alerts.findIndex(x=>x.id === id);
+  if(idx===-1) return alert('Alert not found');
+  const removed = alerts.splice(idx,1)[0];
+  writeAlerts(alerts);
+  const central = readCentral();
+  const rec = central[aadhaar] || Object.values(central).find(x=>x.uniqueID === aadhaar);
+  const uid = (rec && rec.uniqueID) ? rec.uniqueID : (removed.uniqueID || aadhaar);
+  localStorage.setItem('tourism_resolved_' + uid, `Resolved at ${new Date().toLocaleString()}`);
+  window.dispatchEvent(new Event('storage'));
+  alert('Resolved');
+  renderAlerts();
+  refreshCentralList();
+}
+
+/* -------------
+   Map helpers
+---------------*/
+function updatePoliceMarker(ad, coords){
+  if(!coords || !Array.isArray(coords)) return;
+  if(policeMarkers[ad]) policeMarkers[ad].setLatLng(coords);
+  else policeMarkers[ad] = L.marker(coords, {title: ad}).addTo(map).bindPopup((readCentral()[ad]?.name)||'Tourist');
+  // update heat
+  const all = [];
+  Object.keys(policeMarkers).forEach(k=>{
+    try{ const p = policeMarkers[k].getLatLng(); all.push([p.lat, p.lng, 0.5]); }catch(e){}
+  });
+  try{
+    readAlerts().forEach(a=>{ if(a.coords && Array.isArray(a.coords)) all.push([Number(a.coords[0]), Number(a.coords[1]), 0.6]); });
+  }catch(e){}
+  heatLayer.setLatLngs(all);
+}
+function centerOn(ad){
+  const central = readCentral();
+  if(central[ad] && central[ad].last){ map.setView(central[ad].last, 15); if(policeMarkers[ad]) policeMarkers[ad].openPopup(); }
+  else { const rec = Object.values(central).find(x=>x.uniqueID === ad); if(rec && rec.last) map.setView(rec.last,15); else alert('No location'); }
+}
+function zoomAllMarkers(){
+  const latlngs = [];
+  Object.keys(policeMarkers).forEach(k=>{ try{ const p = policeMarkers[k].getLatLng(); latlngs.push([p.lat,p.lng]); }catch(e){} });
+  if(latlngs.length===0) return alert('No markers to show');
+  map.fitBounds(L.latLngBounds(latlngs).pad(0.5));
+}
+
+/* -------------
+   Delete tourist
+---------------*/
+function deleteTourist(ad){
+  const central = readCentral();
+  if(central[ad]) delete central[ad];
+  writeCentral(central);
+  if(policeMarkers[ad]){ try{ map.removeLayer(policeMarkers[ad]); }catch(e){} delete policeMarkers[ad]; }
+  refreshCentralList();
+}
+
+/* -------------
+   Export (CSV / Excel / PDF small demo)
+---------------*/
+function exportCSV(){
+  const central = readCentral();
+  const rows = [['Name','Aadhaar','UID','LastLat','LastLng','RegisteredOn']];
+  Object.keys(central).forEach(ad=>{
+    const t = central[ad];
+    rows.push([t.name||'', ad, t.uniqueID||'', t.last? t.last[0] : '', t.last? t.last[1] : '', t.date||'']);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type:'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='tourists_export.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+function exportExcel(){ exportCSV(); alert('Excel export: downloaded CSV (rename .csv->.xlsx).'); }
+function exportPDF(){
+  const central = readCentral();
+  let html = `<h1>Tourists</h1><table border="1" cellspacing="0" cellpadding="4"><tr><th>Name</th><th>Aadhaar</th><th>UID</th><th>Last</th></tr>`;
+  Object.keys(central).forEach(ad=>{
+    const t=central[ad]; html += `<tr><td>${t.name}</td><td>${ad}</td><td>${t.uniqueID||''}</td><td>${t.last? (t.last.join(', ')) : ''}</td></tr>`;
+  });
+  html += '</table>';
+  const w = window.open('', '_blank'); w.document.write(html); w.print(); w.close();
+}
+
+/* -------------
+   Verification & History
+---------------*/
+function verifyById(){
+  const q = document.getElementById('tableSearch').value.trim();
+  if(!q) return refreshCentralList();
+  const central = readCentral();
+  const foundKey = Object.keys(central).find(k => k === q || (central[k].uniqueID === q) || (central[k].name && central[k].name.toLowerCase().includes(q.toLowerCase())));
+  if(foundKey){
+    centerOn(foundKey);
+  } else alert('Not found');
+}
+function showHistory(ad){
+  const central = readCentral(); const rec = central[ad];
+  if(!rec) return alert('No record');
+  const all = JSON.parse(localStorage.getItem('suraksha_history_v1') || '[]');
+  let out = `History for ${rec.name} (${ad}):\n\n`;
+  all.forEach(line => { if(line.includes(rec.uniqueID) || line.includes(rec.name) || line.includes(ad)) out += line + '\n'; });
+  if(out.trim() === `History for ${rec.name} (${ad}):`) out = 'No detailed history found.';
+  alert(out);
+}
+
+/* -------------
+   Chat Authority -> Tourist
+---------------*/
+function authSendChat(){
+  const target = document.getElementById('authTarget').value.trim();
+  const msg = document.getElementById('authMsg').value.trim();
+  if(!target || !msg) return alert('Enter target and message');
+  const central = readCentral();
+  let aadhaarKey = target;
+  if(!central[target]){
+    const rec = Object.keys(central).map(k=>central[k]).find(x=>x.uniqueID === target);
+    if(rec) aadhaarKey = Object.keys(central).find(k=>central[k]===rec);
+  }
+  const rec = readCentral()[aadhaarKey];
+  const uid = rec && rec.uniqueID ? rec.uniqueID : aadhaarKey;
+  const key = 'chat_thread_' + uid;
+  const arr = JSON.parse(localStorage.getItem(key) || '[]');
+  const m = { from:'authority', text: msg, time: new Date().toLocaleString() };
+  arr.push(m);
+  localStorage.setItem(key, JSON.stringify(arr));
+  window.dispatchEvent(new Event('storage'));
+  document.getElementById('authMsg').value = '';
+  renderAuthorityChat(target);
+  alert('Message sent (if tourist online)');
+}
+function renderAuthorityChat(target){
+  const box = document.getElementById('authChatBody'); box.innerHTML='';
+  if(!target){ box.innerHTML = '<div class="small muted">Specify a target to view messages</div>'; return; }
+  const central = readCentral();
+  let aadhaarKey = target;
+  if(!central[target]){
+    const rec = Object.keys(central).map(k=>central[k]).find(x=>x.uniqueID === target);
+    if(rec) aadhaarKey = Object.keys(central).find(k=>central[k]===rec);
+  }
+  const rec = central[aadhaarKey];
+  const key = 'chat_thread_' + (rec && rec.uniqueID ? rec.uniqueID : aadhaarKey);
+  const arr = JSON.parse(localStorage.getItem(key) || '[]');
+  if(arr.length===0){ box.innerHTML = '<div class="small muted">No messages yet</div>'; return; }
+  arr.forEach(m => { const d = document.createElement('div'); d.className='chat-msg'; d.textContent = `${m.from.toUpperCase()}: ${m.text} · ${m.time}`; box.appendChild(d); });
+}
+
+/* -------------
+   React to storage changes (sync)
+---------------*/
+window.addEventListener('storage', (e)=>{
+  try{ refreshCentralList(); }catch(e){}
+  try{ renderAlerts(); }catch(e){}
+});
+
+/* -------------
+   Periodic sync: update markers from central every 3s
+---------------*/
+setInterval(()=>{
+  try{
+    const central = readCentral();
+    Object.keys(central).forEach(ad=>{
+      const t = central[ad];
+      if(t && t.last && Array.isArray(t.last) && t.last.length >= 2) updatePoliceMarker(ad, t.last);
+    });
+    refreshCentralList(); renderAlerts();
+  }catch(e){ console.error(e); }
+},3000);
+
+/* -------------
+   Analytics (Chart)
+---------------*/
+const ctx = document.getElementById('sosTrend').getContext('2d');
+let sosChart = new Chart(ctx, {
+  type:'line',
+  data:{ labels:[], datasets:[{ label:'SOS (recent)', data:[], tension:0.3, borderColor:'#ff6384', backgroundColor:'rgba(255,99,132,0.08)', fill:true }]},
+  options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{ display:true }, y:{ beginAtZero:true } } }
+});
+function updateAnalytics(){
+  const central = readCentral();
+  const alerts = readAlerts();
+  document.getElementById('anal_count').textContent = Object.keys(central).length;
+  document.getElementById('anal_open').textContent = alerts.length;
+  document.getElementById('anal_resolved').textContent = resolvedCount;
+  // trend: push current count into trend
+  sosTrendData.push(alerts.length);
+  if(sosTrendData.length>12) sosTrendData.shift();
+  sosChart.data.labels = sosTrendData.map((_,i)=> (new Date()).toLocaleTimeString().split(' ')[0] );
+  sosChart.data.datasets[0].data = sosTrendData;
+  sosChart.update();
+}
+
+/* -------------
+   Initial load
+---------------*/
+function init(){
+  refreshCentralList(); renderAlerts(); updateAnalytics();
+}
+init();
+
+</script>
+</body>
+</html>
